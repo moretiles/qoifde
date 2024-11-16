@@ -28,7 +28,7 @@
 #define QOI_OP_LUMA  0x80
 #define QOI_OP_RUN   0xc0
 
-#define MAX_BLOCK_SIZE 4 * 1024 * 1024
+#define MAX_BLOCK_SIZE (4 * 1024 * 1024)
 
 void write32(char *buf, uint32_t val){
     char str[4];
