@@ -3,15 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-//#define MAGIC "qoif"
-#define MAGIC 0x716f6966
-//#define END_MARKER [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1]
-#define END_MARKER_1 0
-#define END_MARKER_2 1
-
-#define IMAGE_WIDTH 366
-#define IMAGE_HEIGHT 206
-#define CHANNELS 4
+#define MAGIC "qoif"
+#define END_MARKER "\x00\x00\x00\x00\x00\x00\x00\x01"
 
 #define HEADER_SIZE_BYTES (4 + 4 + 4 + 1 + 1)
 #define MAX_CHUNKS_SIZE_BYTES (IMAGE_HEIGHT * IMAGE_WIDTH * (CHANNELS + 1))
@@ -30,14 +23,10 @@
 
 #define MAX_BLOCK_SIZE (4 * 1024 * 1024)
 
-void write32(char *buf, uint32_t val){
-    char str[4];
-    str[0] = (val >> 24) & 0xff;
-    str[1] = (val >> 16) & 0xff;
-    str[2] = (val >> 8) & 0xff;
-    str[3] = (val >> 0) & 0xff;
-    memcpy(buf, str, 4);
-}
+int IMAGE_WIDTH = 366;
+int IMAGE_HEIGHT = 206;
+char CHANNELS = 3;
+char COLORSPACE = 1;
 
 struct rgba {
     int8_t r;
@@ -54,12 +43,25 @@ struct stack {
 void push(struct stack *store, char *data, int size){
     int i = 0;
     for(i = 0; i < size; i++){
-        store->chars[i] = data[i];
+        store->chars[store->pos + i] = data[i];
     }
     store->pos = store->pos + size;
 }
 
-void pushFile(FILE *readFile, struct stack *store, int size){
+void pushl(struct stack *store, char *data, int size){
+    int i = 0;
+    for(i = 0; i < size; i++){
+        store->chars[store->pos + i] = data[size - 1 - i];
+    }
+    store->pos = store->pos + size;
+}
+
+void pushc(struct stack *store, char c){
+    store->chars[store->pos] = c;
+    store->pos = store->pos + 1;
+}
+
+void pushFromFile(FILE *readFile, struct stack *store, int size){
     int blockSize = 0;
     char *tmp = malloc(MAX_BLOCK_SIZE);
     if (size == 0) {
@@ -76,7 +78,7 @@ void pushFile(FILE *readFile, struct stack *store, int size){
 }
 
 // popping means to write n bytes to a file
-void popFile(FILE *writeFile, struct stack *store, int size){
+void popToFile(FILE *writeFile, struct stack *store, int size){
     int blockSize = 0;
     if (size == 0) {
         return;
@@ -87,6 +89,26 @@ void popFile(FILE *writeFile, struct stack *store, int size){
         store->pos = store->pos - blockSize;
         size = size - MAX_BLOCK_SIZE;
     } while (size > 0);
+}
+
+int readRgba(FILE *readFile, char *buf, int size){
+    struct stack store = { buf, 0 };
+    pushFromFile(readFile, &store, size);
+    if (store.pos != size){
+        return store.pos;
+    } else {
+        return 0;
+    }
+}
+
+int writeRgba(FILE *writeFile, char *buf, int size){
+    struct stack store = { buf, size };
+    popToFile(writeFile, &store, size);
+    if (store.pos != 0){
+        return store.pos;
+    } else {
+        return 0;
+    }
 }
 
 int colorsEqual (struct rgba diff){
@@ -103,8 +125,6 @@ struct rgba colorsDiff (struct rgba c1, struct rgba c2) {
     diff.g = c1.g - c2.g;
     diff.b = c1.b - c2.b;
     diff.a = c1.a - c2.a;
-    printf("c1s: r = %i, g = %i, b = %i, a = %i\n", c1.r, c1.g, c1.b, c1.a);
-    printf("c2s: r = %i, g = %i, b = %i, a = %i\n", c2.r, c2.g, c2.b, c2.a);
     return diff;
 }
 
@@ -117,7 +137,6 @@ void addSeen(struct rgba color, struct rgba *colors, int pos){
 
 int colorIndex(struct rgba color, struct rgba *colors){
     int pos = (64 + seenHash(color)) % 64;
-    //printf("in colorIndex pos is %i\n", pos);
     struct rgba testcolor = colorsDiff(color, colors[pos]);
     if (colorsEqual(testcolor)){
         return pos;
@@ -128,25 +147,20 @@ int colorIndex(struct rgba color, struct rgba *colors){
 }
 
 int isDiff(struct rgba diff){
-    //printf("in isDiff: diff.r = %i, diff.g = %i, diff.b = %i, diff.a = %i\n", diff.r, diff.g, diff.b, diff.a);
     char rtest, gtest, btest, atest;
     rtest = diff.r >= -2 && diff.r <= 1;
     gtest = diff.g >= -2 && diff.g <= 1;
     btest = diff.b >= -2 && diff.b <= 1;
     atest = diff.a == 0;
-    //printf("isDiff result is %i\n", rtest && gtest && btest && atest);
     return rtest && gtest && btest && atest;
 }
 
-void writeDiff(char *buf, struct rgba diff, long int index){
-    int8_t result = QOI_OP_DIFF;
-    //printf("diff.r = %i, diff.g = %i, diff.b = %i\n", diff.r, diff.g, diff.b);
+void writeDiff(struct stack *store, struct rgba diff){
+    char result = QOI_OP_DIFF;
     result = result | ((2 + diff.r) << 4);
     result = result | ((2 + diff.g) << 2);
     result = result | ((2 + diff.b) << 0);
-    //printf("writeDiff result is %i\n", result);
-    buf[index] = result;
-    //*index = *index + 1;
+    push(store, &result, 1);
 }
 
 int isLuma(struct rgba diff){
@@ -157,36 +171,35 @@ int isLuma(struct rgba diff){
     bgdiff = diff.b - diff.g;
     btest = bgdiff >= -8 && bgdiff <= 7;
     atest = diff.a == 0;
-    //printf("Isluma check is %i\n", rtest && gtest && btest && atest);
     return rtest && gtest && btest && atest;
 }
 
-void writeLuma(char *buf, struct rgba diff, long int index){
-    int8_t result = QOI_OP_LUMA;
-    result = result | (diff.g + 32);
-    buf[index] = result;
-    //*index = *index + 1;
-    result = (diff.r - diff.g + 8) << 4;
-    result = result | (diff.b - diff.g + 8);
-    buf[index + 1] = result;
-    //*index = *index + 1;
+void writeLuma(struct stack *store, struct rgba diff){
+    char result[2] = {0, 0};
+    result[0] = QOI_OP_LUMA;
+    result[0] = result[0] | (diff.g + 32);
+    result[1] = (diff.r - diff.g + 8) << 4;
+    result[1] = result[1] | (diff.b - diff.g + 8);
+    push(store, result, 2);
 }
 
-void writeRGB(char *buf, struct rgba c, long int index){
-    buf[index] = QOI_OP_RGB;
-    buf[index + 1] = c.r;
-    buf[index + 2] = c.g;
-    buf[index + 3] = c.b;
-    //*index = *index + 4;
+void writeRGB(struct stack *store, struct rgba c){
+    char result[4];
+    result[0] = QOI_OP_RGB;
+    result[1] = c.r;
+    result[2] = c.g;
+    result[3] = c.b;
+    push(store, result, 4);
 }
 
-void writeRGBA(char *buf, struct rgba c, long int index){
-    buf[index] = QOI_OP_RGBA;
-    buf[index + 1] = c.r;
-    buf[index + 2] = c.g;
-    buf[index + 3] = c.b;
-    buf[index + 4] = c.a;
-    //*index = *index + 5;
+void writeRGBA(struct stack *store, struct rgba c){
+    char result[5];
+    result[0] = QOI_OP_RGBA;
+    result[1] = c.r;
+    result[2] = c.g;
+    result[3] = c.b;
+    result[4] = c.a;
+    push(store, result, 5);
 }
 
 int main(){
@@ -200,24 +213,26 @@ int main(){
 
     char *qoibuffer = NULL;
 
-    FILE *readFile  = NULL;
+    FILE *readFile = NULL;
     FILE *writeFile = NULL;
 
+    struct stack *readStack = &(struct stack) { 0, 0 };;
+    struct stack *writeStack = &(struct stack) { 0, 0 };;
+
     long readIndex = 0;
-    long writeIndex = 0;
     long lastPixel = -1;
 
     memset(seen, 0, 64 * sizeof(struct rgba));
 
     qoibuffer = malloc(MAX_QOI_SIZE);
-    write32(qoibuffer, MAGIC);
-    write32(&(qoibuffer[4]), IMAGE_WIDTH);
-    write32(&(qoibuffer[8]), IMAGE_HEIGHT);
-    qoibuffer[12] = (char) CHANNELS;
-    qoibuffer[13] = (char) 1;
-    writeIndex = 14;
+    writeStack->chars = qoibuffer;
+    push(writeStack, MAGIC, 4);
+    pushl(writeStack, (char *) &IMAGE_WIDTH, 4);
+    pushl(writeStack, (char *) &IMAGE_HEIGHT, 4);
+    pushc(writeStack, CHANNELS);
+    pushc(writeStack, COLORSPACE);
 
-    readFile = fopen("assets/test.rgba", "rb");
+    readFile = fopen("assets/test.rgb", "rb");
     if(!readFile){
         fprintf(stderr, "failed to open file to read from\n");
         return 1;
@@ -225,10 +240,9 @@ int main(){
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
     for(readIndex = 0; readIndex < lastPixel; readIndex++){
-        printf("readindex: %li, writeindex: %li, want to write byte: %li\n", readIndex, writeIndex, writeIndex + 1);
 
         // read colors from rgba file
-        if(fread(&colors, 1, CHANNELS, readFile) != CHANNELS){
+        if(fread(&colors, 1, CHANNELS, readFile) != (long unsigned int) CHANNELS){
             fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
         }
         if (CHANNELS == 4){
@@ -246,51 +260,40 @@ int main(){
         diff = colorsDiff(current, prev);
         if (colorsEqual(diff)) {
             runs++;
-            //printf("runs is %i\n", runs);
             if (runs == 62 || (readIndex + 1) == lastPixel){
-                qoibuffer[writeIndex] = QOI_OP_RUN | (runs - 1);
-                writeIndex = writeIndex + 1;
+                pushc(writeStack, QOI_OP_RUN | (runs - 1));
                 runs = 0;
             }
             goto endloop;
         } else if (runs > 0) {
-            printf("run is %i, runbreaker is {%i, %i, %i, %i}, run was {%i, %i, %i, %i}\n", 
-                    runs, current.r, current.g, current.b, current.a, prev.r, prev.g, prev.b, prev.a);
-            qoibuffer[writeIndex] = QOI_OP_RUN | (runs - 1);
-            writeIndex = writeIndex + 1;
+            pushc(writeStack, QOI_OP_RUN | (runs - 1));
             runs = 0;
         }
 
         // Check for indexes
         matchIndex = colorIndex(current, seen);
-        //printf("I am at write position %li and matchIndex is %i\n", writeIndex, matchIndex);
         if (matchIndex != -1) {
-            qoibuffer[writeIndex] = QOI_OP_INDEX | matchIndex;
-            writeIndex = writeIndex + 1;
+            pushc(writeStack, QOI_OP_INDEX | matchIndex);
             goto endloop;
         }
 
         // Check for small difference
         if (isDiff(diff)) {
-            writeDiff(qoibuffer, diff, writeIndex);
-            writeIndex = writeIndex + 1;
+            writeDiff(writeStack, diff);
             goto endloop;
         }
 
         // Check for luma
         if (isLuma(diff)) {
-            writeLuma(qoibuffer, diff, writeIndex);    
-            writeIndex = writeIndex + 2;
+            writeLuma(writeStack, diff);
             goto endloop;
         }
 
         // no compression matches
         if (CHANNELS == 3 || current.a == prev.a){
-            writeRGB(qoibuffer, current, writeIndex);
-            writeIndex = writeIndex + 4;
+            writeRGB(writeStack, current);
         } else {
-            writeRGBA(qoibuffer, current, writeIndex);
-            writeIndex = writeIndex + 5;
+            writeRGBA(writeStack, current);
         }
 
         // setup everything for next iteration
@@ -303,13 +306,10 @@ endloop:
 
     fclose(readFile);
 
-    write32(&(qoibuffer[writeIndex]), END_MARKER_1);
-    writeIndex = writeIndex + 4;
-    write32(&(qoibuffer[writeIndex]), END_MARKER_2);
-    writeIndex = writeIndex + 4;
+    push(writeStack, END_MARKER, 8);
 
     writeFile = fopen("out/mine.qoi", "wb");
-    fwrite(qoibuffer, writeIndex, 1, writeFile);
+    fwrite(writeStack->chars, writeStack->pos, 1, writeFile);
     fclose(writeFile);
 
     free(qoibuffer);

@@ -4,7 +4,7 @@ set -e
 
 make all
 ./bin/qoie
-./bin/qoitestrgba
+./bin/qoitestrgb
 #./bin/qoitestrgba
 cmp out/test.qoi out/mine.qoi || true
 echo test.qoi
