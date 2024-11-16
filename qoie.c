@@ -49,7 +49,7 @@ int colorsEqual (struct rgba diff){
 }
 
 int seenHash(struct rgba c){
-    return (((c.r * 3) % 256) + ((c.g * 5) % 256) + ((c.b * 7) % 256) + ((c.a * 11) % 256)) % 64;
+    return (c.r * 3 + c.g * 5 + c.b * 7 + c.a * 11) % 64;
 }
 
 struct rgba colorsDiff (struct rgba c1, struct rgba c2) {
@@ -58,8 +58,8 @@ struct rgba colorsDiff (struct rgba c1, struct rgba c2) {
     diff.g = c1.g - c2.g;
     diff.b = c1.b - c2.b;
     diff.a = c1.a - c2.a;
-    //printf("c1s: r = %i, g = %i, b = %i, a = %i\n", c1.r, c1.g, c1.b, c1.a);
-    //printf("c2s: r = %i, g = %i, b = %i, a = %i\n", c2.r, c2.g, c2.b, c2.a);
+    printf("c1s: r = %i, g = %i, b = %i, a = %i\n", c1.r, c1.g, c1.b, c1.a);
+    printf("c2s: r = %i, g = %i, b = %i, a = %i\n", c2.r, c2.g, c2.b, c2.a);
     return diff;
 }
 
@@ -71,10 +71,7 @@ void addSeen(struct rgba color, struct rgba *colors, int pos){
 }
 
 int colorIndex(struct rgba color, struct rgba *colors){
-    int pos = seenHash(color) % 64;
-    if (pos < 0){
-        pos = pos + 63;
-    }
+    int pos = (64 + seenHash(color)) % 64;
     //printf("in colorIndex pos is %i\n", pos);
     struct rgba testcolor = colorsDiff(color, colors[pos]);
     if (colorsEqual(testcolor)){
@@ -183,7 +180,7 @@ int main(){
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
     for(readIndex = 0; readIndex < lastPixel; readIndex++){
-        //printf("readindex: %li, writeindex: %li, want to write byte: %li\n", readIndex, writeIndex, writeIndex + 1);
+        printf("readindex: %li, writeindex: %li, want to write byte: %li\n", readIndex, writeIndex, writeIndex + 1);
 
         // read colors from rgba file
         if(fread(&colors, 1, CHANNELS, readFile) != CHANNELS){
@@ -208,8 +205,8 @@ int main(){
             }
             goto endloop;
         } else if (runs > 0) {
-            /*printf("run is %i, runbreaker is {%i, %i, %i, %i}, run was {%i, %i, %i, %i}\n", 
-                    runs, current.r, current.g, current.b, current.a, prev.r, prev.g, prev.b, prev.a);*/
+            printf("run is %i, runbreaker is {%i, %i, %i, %i}, run was {%i, %i, %i, %i}\n", 
+                    runs, current.r, current.g, current.b, current.a, prev.r, prev.g, prev.b, prev.a);
             qoibuffer[writeIndex] = QOI_OP_RUN | (runs - 1);
             writeIndex = writeIndex + 1;
             runs = 0;
