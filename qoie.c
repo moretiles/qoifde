@@ -186,12 +186,16 @@ int main(){
         if(fread(&colors, 1, CHANNELS, readFile) != CHANNELS){
             fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
         }
-        current.r = colors & 0xff;
-        current.g = (colors >> (8 * (CHANNELS - 3))) & 0xff;
-        current.b = (colors >> (8 * (CHANNELS - 2))) & 0xff;
         if (CHANNELS == 4){
+            current.r = colors & 0xff;
+            current.g = (colors >> (8 * (CHANNELS - 3))) & 0xff;
+            current.b = (colors >> (8 * (CHANNELS - 2))) & 0xff;
             current.a = (colors >> (8 * (CHANNELS - 1))) & 0xff;
-        } 
+        } else {
+            current.r = colors & 0xff;
+            current.g = (colors >> (8 * (CHANNELS - 2))) & 0xff;
+            current.b = (colors >> (8 * (CHANNELS - 1))) & 0xff;
+        }
 
         // Checks for runs
         diff = colorsDiff(current, prev);
