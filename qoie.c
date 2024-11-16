@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "stack.h"
+
 #define MAGIC "qoif"
 #define END_MARKER "\x00\x00\x00\x00\x00\x00\x00\x01"
 
@@ -21,8 +23,6 @@
 #define QOI_OP_LUMA  0x80
 #define QOI_OP_RUN   0xc0
 
-#define MAX_BLOCK_SIZE (4 * 1024 * 1024)
-
 int IMAGE_WIDTH = 366;
 int IMAGE_HEIGHT = 206;
 char CHANNELS = 3;
@@ -35,63 +35,9 @@ struct rgba {
     int8_t a;
 };
 
-struct stack {
-    char *chars;
-    int pos;
-};
-
-void push(struct stack *store, char *data, int size){
-    int i = 0;
-    for(i = 0; i < size; i++){
-        store->chars[store->pos + i] = data[i];
-    }
-    store->pos = store->pos + size;
-}
-
-void pushl(struct stack *store, char *data, int size){
-    int i = 0;
-    for(i = 0; i < size; i++){
-        store->chars[store->pos + i] = data[size - 1 - i];
-    }
-    store->pos = store->pos + size;
-}
-
-void pushc(struct stack *store, char c){
-    store->chars[store->pos] = c;
-    store->pos = store->pos + 1;
-}
-
-void pushFromFile(FILE *readFile, struct stack *store, int size){
-    int blockSize = 0;
-    char *tmp = malloc(MAX_BLOCK_SIZE);
-    if (size == 0) {
-        return;
-    }
-    do{
-        blockSize = (size > MAX_BLOCK_SIZE) ? MAX_BLOCK_SIZE : size;
-        fread(tmp, 1, blockSize, readFile);
-        push(store, tmp, blockSize);
-        store->pos = store->pos + blockSize;
-        size = size - MAX_BLOCK_SIZE;
-    } while (size > 0);
-    free(tmp);
-}
-
-// popping means to write n bytes to a file
-void popToFile(FILE *writeFile, struct stack *store, int size){
-    int blockSize = 0;
-    if (size == 0) {
-        return;
-    }
-    do{
-        blockSize = (size > MAX_BLOCK_SIZE) ? MAX_BLOCK_SIZE : size;
-        fwrite(store->chars, 1, blockSize, writeFile);
-        store->pos = store->pos - blockSize;
-        size = size - MAX_BLOCK_SIZE;
-    } while (size > 0);
-}
-
-int readRgba(FILE *readFile, char *buf, int size){
+// Push an entire RGB/RGBA file into a buffer
+int readRGBAFile(FILE *readFile, char *buf, int height, int width, int channels){
+    int size = height * width * channels;
     struct stack store = { buf, 0 };
     pushFromFile(readFile, &store, size);
     if (store.pos != size){
@@ -101,7 +47,9 @@ int readRgba(FILE *readFile, char *buf, int size){
     }
 }
 
-int writeRgba(FILE *writeFile, char *buf, int size){
+// Write an entire buffer of RGB/RGBA pixels to a file
+int writeRGBAFile(FILE *writeFile, char *buf, int height, int width, int channels){
+    int size = height * width * channels;
     struct stack store = { buf, size };
     popToFile(writeFile, &store, size);
     if (store.pos != 0){
@@ -111,14 +59,20 @@ int writeRgba(FILE *writeFile, char *buf, int size){
     }
 }
 
+/*
+ * Checks if a struct rgba is { 0, 0, 0, 0 }
+ * Only called on the difference
+ */
 int colorsEqual (struct rgba diff){
     return diff.r == 0 && diff.g == 0 && diff.b == 0 && diff.a == 0;
 }
 
+// Hash function that indexes into the cached colors
 int seenHash(struct rgba c){
     return (c.r * 3 + c.g * 5 + c.b * 7 + c.a * 11) % 64;
 }
 
+// Calculate difference between two rgba structs
 struct rgba colorsDiff (struct rgba c1, struct rgba c2) {
     struct rgba diff = { 0, 0, 0, 0 };
     diff.r = c1.r - c2.r;
@@ -128,6 +82,7 @@ struct rgba colorsDiff (struct rgba c1, struct rgba c2) {
     return diff;
 }
 
+// Copy a color into colors at pos
 void addSeen(struct rgba color, struct rgba *colors, int pos){
     colors[pos].r = color.r;
     colors[pos].b = color.b;
@@ -135,6 +90,7 @@ void addSeen(struct rgba color, struct rgba *colors, int pos){
     colors[pos].a = color.a;
 }
 
+// Check if color has been cached in colors
 int colorIndex(struct rgba color, struct rgba *colors){
     int pos = (64 + seenHash(color)) % 64;
     struct rgba testcolor = colorsDiff(color, colors[pos]);
@@ -146,6 +102,7 @@ int colorIndex(struct rgba color, struct rgba *colors){
     }
 }
 
+// Check if a small difference exists
 int isDiff(struct rgba diff){
     char rtest, gtest, btest, atest;
     rtest = diff.r >= -2 && diff.r <= 1;
@@ -155,6 +112,7 @@ int isDiff(struct rgba diff){
     return rtest && gtest && btest && atest;
 }
 
+// Write small difference chunk
 void writeDiff(struct stack *store, struct rgba diff){
     char result = QOI_OP_DIFF;
     result = result | ((2 + diff.r) << 4);
@@ -163,6 +121,7 @@ void writeDiff(struct stack *store, struct rgba diff){
     push(store, &result, 1);
 }
 
+// Check if a large (luma) difference exists
 int isLuma(struct rgba diff){
     char gtest, rgdiff, rtest, bgdiff, btest, atest;
     gtest = diff.g >= -32 && diff.g <= 31;
@@ -174,6 +133,7 @@ int isLuma(struct rgba diff){
     return rtest && gtest && btest && atest;
 }
 
+// Write large (luma) difference chunk
 void writeLuma(struct stack *store, struct rgba diff){
     char result[2] = {0, 0};
     result[0] = QOI_OP_LUMA;
@@ -183,6 +143,7 @@ void writeLuma(struct stack *store, struct rgba diff){
     push(store, result, 2);
 }
 
+// Write RGB chunk
 void writeRGB(struct stack *store, struct rgba c){
     char result[4];
     result[0] = QOI_OP_RGB;
@@ -192,6 +153,7 @@ void writeRGB(struct stack *store, struct rgba c){
     push(store, result, 4);
 }
 
+// Write RGBA chunk
 void writeRGBA(struct stack *store, struct rgba c){
     char result[5];
     result[0] = QOI_OP_RGBA;
@@ -226,6 +188,7 @@ int main(){
 
     qoibuffer = malloc(MAX_QOI_SIZE);
     writeStack->chars = qoibuffer;
+
     push(writeStack, MAGIC, 4);
     pushl(writeStack, (char *) &IMAGE_WIDTH, 4);
     pushl(writeStack, (char *) &IMAGE_HEIGHT, 4);
@@ -256,7 +219,10 @@ int main(){
             current.b = (colors >> (8 * (CHANNELS - 1))) & 0xff;
         }
 
-        // Checks for runs
+        /*
+         * Checks for runs
+         * All the logic involving runs needs to be kept in main
+         */
         diff = colorsDiff(current, prev);
         if (colorsEqual(diff)) {
             runs++;
