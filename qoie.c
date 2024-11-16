@@ -28,6 +28,8 @@
 #define QOI_OP_LUMA  0x80
 #define QOI_OP_RUN   0xc0
 
+#define MAX_BLOCK_SIZE 4 * 1024 * 1024
+
 void write32(char *buf, uint32_t val){
     char str[4];
     str[0] = (val >> 24) & 0xff;
@@ -43,6 +45,49 @@ struct rgba {
     int8_t b;
     int8_t a;
 };
+
+struct stack {
+    char *chars;
+    int pos;
+};
+
+void push(struct stack *store, char *data, int size){
+    int i = 0;
+    for(i = 0; i < size; i++){
+        store->chars[i] = data[i];
+    }
+    store->pos = store->pos + size;
+}
+
+void pushFile(FILE *readFile, struct stack *store, int size){
+    int blockSize = 0;
+    char *tmp = malloc(MAX_BLOCK_SIZE);
+    if (size == 0) {
+        return;
+    }
+    do{
+        blockSize = (size > MAX_BLOCK_SIZE) ? MAX_BLOCK_SIZE : size;
+        fread(tmp, 1, blockSize, readFile);
+        push(store, tmp, blockSize);
+        store->pos = store->pos + blockSize;
+        size = size - MAX_BLOCK_SIZE;
+    } while (size > 0);
+    free(tmp);
+}
+
+// popping means to write n bytes to a file
+void popFile(FILE *writeFile, struct stack *store, int size){
+    int blockSize = 0;
+    if (size == 0) {
+        return;
+    }
+    do{
+        blockSize = (size > MAX_BLOCK_SIZE) ? MAX_BLOCK_SIZE : size;
+        fwrite(store->chars, 1, blockSize, writeFile);
+        store->pos = store->pos - blockSize;
+        size = size - MAX_BLOCK_SIZE;
+    } while (size > 0);
+}
 
 int colorsEqual (struct rgba diff){
     return diff.r == 0 && diff.g == 0 && diff.b == 0 && diff.a == 0;
