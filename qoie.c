@@ -35,30 +35,6 @@ struct rgba {
     int8_t a;
 };
 
-// Push an entire RGB/RGBA file into a buffer
-int readRGBAFile(char *readFilename, char *buf, int height, int width, int channels){
-    int size = height * width * channels;
-    struct stack store = { buf, 0, height * width * channels };
-    pushFromFile(readFilename, &store);
-    if (store.pos != size){
-        return store.pos;
-    } else {
-        return 0;
-    }
-}
-
-// Write an entire buffer of RGB/RGBA pixels to a file
-int writeRGBAFile(char *writeFilename, char *buf, int height, int width, int channels){
-    int size = height * width * channels;
-    struct stack store = { buf, size, size };
-    popToFile(writeFilename, &store);
-    if (store.pos != 0){
-        return store.pos;
-    } else {
-        return 0;
-    }
-}
-
 /*
  * Checks if a struct rgba is { 0, 0, 0, 0 }
  * Only called on the difference
@@ -176,11 +152,6 @@ int main(){
     char *rgbabuffer = NULL;
     char *qoibuffer = NULL;
 
-    /*
-       FILE *readFile = NULL;
-       FILE *writeFile = NULL;
-       */
-
     struct stack *readStack = &(struct stack) { NULL, 0, IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS };
     struct stack *writeStack = &(struct stack) { NULL, 0, MAX_QOI_SIZE };
 
@@ -200,29 +171,11 @@ int main(){
     pushc(writeStack, CHANNELS);
     pushc(writeStack, COLORSPACE);
 
-    /*
-       readFile = fopen("assets/test.rgb", "rb");
-       if(!readFile){
-       fprintf(stderr, "failed to open file to read from\n");
-       return 1;
-       }
-       */
     pushFromFile("assets/test.rgb", readStack);
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
     for(readIndex = 0; readIndex < lastPixel; readIndex++){
-
-        // read colors from rgba file
-        /*
-           if(fread(&colors, 1, CHANNELS, readFile) != (long unsigned int) CHANNELS){
-           fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
-           goto mainError;
-           }
-           */
-
-        //printf("Current readStack index is %i\n", readStack->pos);
         popPseudoQueue(readStack, colors, CHANNELS);
-        //printf("Colors is %i\n", colors);
         current.r = colors[0];
         current.g = colors[1];
         current.b = colors[2];
@@ -282,15 +235,8 @@ endloop:
         prev.a = current.a;
     }
 
-    //fclose(readFile);
-
     push(writeStack, END_MARKER, 8);
 
-    /*
-       writeFile = fopen("out/mine.qoi", "wb");
-       fwrite(writeStack->chars, writeStack->pos, 1, writeFile);
-       fclose(writeFile);
-       */
     popToFile("out/mine.qoi", writeStack);
 
     free(qoibuffer);
