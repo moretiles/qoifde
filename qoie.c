@@ -14,14 +14,14 @@
 #define MAX_QOI_SIZE (HEADER_SIZE_BYTES + MAX_CHUNKS_SIZE_BYTES + FOOTER_SIZE_BYTES)
 
 // full byte check
-#define QOI_OP_RGB   0xfe
-#define QOI_OP_RGBA  0xff
+#define QOI_OP_RGB   (0xfe)
+#define QOI_OP_RGBA  (0xff)
 
 // check two leading bits of byte
-#define QOI_OP_INDEX 0x00
-#define QOI_OP_DIFF  0x40
-#define QOI_OP_LUMA  0x80
-#define QOI_OP_RUN   0xc0
+#define QOI_OP_INDEX (0x00)
+#define QOI_OP_DIFF  (0x40)
+#define QOI_OP_LUMA  (0x80)
+#define QOI_OP_RUN   (0xc0)
 
 int IMAGE_WIDTH = 366;
 int IMAGE_HEIGHT = 206;
@@ -165,19 +165,21 @@ void writeRGBA(struct stack *store, struct rgba c){
 }
 
 int main(){
+    struct rgba seen[64];
     struct rgba prev = { 0, 0, 0, 255 };
     struct rgba current = { 0, 0, 0, 255 };
     struct rgba diff = { 0, 0, 0, 0 };
-    struct rgba seen[64];
+    char colors[4] = { 0 };
     char matchIndex = 0;
-    uint32_t colors = 0;
     char runs = 0;
 
     char *rgbabuffer = NULL;
     char *qoibuffer = NULL;
 
-    FILE *readFile = NULL;
-    FILE *writeFile = NULL;
+    /*
+       FILE *readFile = NULL;
+       FILE *writeFile = NULL;
+       */
 
     struct stack *readStack = &(struct stack) { NULL, 0, IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS };
     struct stack *writeStack = &(struct stack) { NULL, 0, MAX_QOI_SIZE };
@@ -189,7 +191,7 @@ int main(){
 
     qoibuffer = malloc(MAX_QOI_SIZE);
     writeStack->chars = qoibuffer;
-    rgbabuffer = malloc(1 + IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS);
+    rgbabuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS);
     readStack->chars = rgbabuffer;
 
     push(writeStack, MAGIC, 4);
@@ -199,12 +201,12 @@ int main(){
     pushc(writeStack, COLORSPACE);
 
     /*
-    readFile = fopen("assets/test.rgb", "rb");
-    if(!readFile){
-        fprintf(stderr, "failed to open file to read from\n");
-        return 1;
-    }
-    */
+       readFile = fopen("assets/test.rgb", "rb");
+       if(!readFile){
+       fprintf(stderr, "failed to open file to read from\n");
+       return 1;
+       }
+       */
     pushFromFile("assets/test.rgb", readStack);
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
@@ -212,24 +214,20 @@ int main(){
 
         // read colors from rgba file
         /*
-        if(fread(&colors, 1, CHANNELS, readFile) != (long unsigned int) CHANNELS){
-            fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
-            goto mainError;
-        }
-        */
+           if(fread(&colors, 1, CHANNELS, readFile) != (long unsigned int) CHANNELS){
+           fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
+           goto mainError;
+           }
+           */
 
         //printf("Current readStack index is %i\n", readStack->pos);
-        popPseudoQueue(readStack, (char *) &colors, CHANNELS);
+        popPseudoQueue(readStack, colors, CHANNELS);
         //printf("Colors is %i\n", colors);
+        current.r = colors[0];
+        current.g = colors[1];
+        current.b = colors[2];
         if (CHANNELS == 4){
-            current.r = colors & 0xff;
-            current.g = (colors >> (8 * (CHANNELS - 3))) & 0xff;
-            current.b = (colors >> (8 * (CHANNELS - 2))) & 0xff;
-            current.a = (colors >> (8 * (CHANNELS - 1))) & 0xff;
-        } else {
-            current.r = colors & 0xff;
-            current.g = (colors >> (8 * (CHANNELS - 2))) & 0xff;
-            current.b = (colors >> (8 * (CHANNELS - 1))) & 0xff;
+            current.a = colors[3];
         }
 
         /*
@@ -289,15 +287,16 @@ endloop:
     push(writeStack, END_MARKER, 8);
 
     /*
-    writeFile = fopen("out/mine.qoi", "wb");
-    fwrite(writeStack->chars, writeStack->pos, 1, writeFile);
-    fclose(writeFile);
-    */
+       writeFile = fopen("out/mine.qoi", "wb");
+       fwrite(writeStack->chars, writeStack->pos, 1, writeFile);
+       fclose(writeFile);
+       */
     popToFile("out/mine.qoi", writeStack);
 
-mainError:
     free(qoibuffer);
+    qoibuffer = NULL;
     free(rgbabuffer);
+    rgbabuffer = NULL;
 
     return 0;
 }
