@@ -36,10 +36,10 @@ struct rgba {
 };
 
 // Push an entire RGB/RGBA file into a buffer
-int readRGBAFile(FILE *readFile, char *buf, int height, int width, int channels){
+int readRGBAFile(char *readFilename, char *buf, int height, int width, int channels){
     int size = height * width * channels;
-    struct stack store = { buf, 0 };
-    pushFromFile(readFile, &store, size);
+    struct stack store = { buf, 0, height * width * channels };
+    pushFromFile(readFilename, &store);
     if (store.pos != size){
         return store.pos;
     } else {
@@ -48,10 +48,10 @@ int readRGBAFile(FILE *readFile, char *buf, int height, int width, int channels)
 }
 
 // Write an entire buffer of RGB/RGBA pixels to a file
-int writeRGBAFile(FILE *writeFile, char *buf, int height, int width, int channels){
+int writeRGBAFile(char *writeFilename, char *buf, int height, int width, int channels){
     int size = height * width * channels;
-    struct stack store = { buf, size };
-    popToFile(writeFile, &store, size);
+    struct stack store = { buf, size, size };
+    popToFile(writeFilename, &store);
     if (store.pos != 0){
         return store.pos;
     } else {
@@ -173,13 +173,14 @@ int main(){
     uint32_t colors = 0;
     char runs = 0;
 
+    char *rgbabuffer = NULL;
     char *qoibuffer = NULL;
 
     FILE *readFile = NULL;
     FILE *writeFile = NULL;
 
-    struct stack *readStack = &(struct stack) { 0, 0 };;
-    struct stack *writeStack = &(struct stack) { 0, 0 };;
+    struct stack *readStack = &(struct stack) { NULL, 0, IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS };
+    struct stack *writeStack = &(struct stack) { NULL, 0, MAX_QOI_SIZE };
 
     long readIndex = 0;
     long lastPixel = -1;
@@ -188,6 +189,8 @@ int main(){
 
     qoibuffer = malloc(MAX_QOI_SIZE);
     writeStack->chars = qoibuffer;
+    rgbabuffer = malloc(1 + IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS);
+    readStack->chars = rgbabuffer;
 
     push(writeStack, MAGIC, 4);
     pushl(writeStack, (char *) &IMAGE_WIDTH, 4);
@@ -195,19 +198,29 @@ int main(){
     pushc(writeStack, CHANNELS);
     pushc(writeStack, COLORSPACE);
 
+    /*
     readFile = fopen("assets/test.rgb", "rb");
     if(!readFile){
         fprintf(stderr, "failed to open file to read from\n");
         return 1;
     }
+    */
+    pushFromFile("assets/test.rgb", readStack);
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
     for(readIndex = 0; readIndex < lastPixel; readIndex++){
 
         // read colors from rgba file
+        /*
         if(fread(&colors, 1, CHANNELS, readFile) != (long unsigned int) CHANNELS){
             fprintf(stderr, "File is too short, expected a RGB/RGBA byte but read less than %i bytes\n", CHANNELS);
+            goto mainError;
         }
+        */
+
+        //printf("Current readStack index is %i\n", readStack->pos);
+        popPseudoQueue(readStack, (char *) &colors, CHANNELS);
+        //printf("Colors is %i\n", colors);
         if (CHANNELS == 4){
             current.r = colors & 0xff;
             current.g = (colors >> (8 * (CHANNELS - 3))) & 0xff;
@@ -234,6 +247,7 @@ int main(){
         } else if (runs > 0) {
             pushc(writeStack, QOI_OP_RUN | (runs - 1));
             runs = 0;
+            // write runs and then process current color
         }
 
         // Check for indexes
@@ -270,15 +284,20 @@ endloop:
         prev.a = current.a;
     }
 
-    fclose(readFile);
+    //fclose(readFile);
 
     push(writeStack, END_MARKER, 8);
 
+    /*
     writeFile = fopen("out/mine.qoi", "wb");
     fwrite(writeStack->chars, writeStack->pos, 1, writeFile);
     fclose(writeFile);
+    */
+    popToFile("out/mine.qoi", writeStack);
 
+mainError:
     free(qoibuffer);
+    free(rgbabuffer);
 
     return 0;
 }
