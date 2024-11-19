@@ -269,8 +269,7 @@ endloop:
             prev.a = current.a;
         }
 
-        readQueue->base = 0;
-        readQueue->pos = 0;
+        clear(readQueue);
         lastByte = dequeueBytesToFile(writeFile, writeQueue, lastByte);
         if(lastByte == ERR_QUEUE_FILE_IO){
             break;

@@ -199,3 +199,9 @@ int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
 int dequeueBlockToFile(FILE *writeFile, struct queue *store){
     return dequeueBytesToFile(writeFile, store, MAX_BLOCK_SIZE);
 }
+
+// Clear the queue data (by saying there is nothing in it)
+void clear(struct queue *store){
+    store->base = 0;
+    store->pos = 0;
+}
