@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "stack.h"
+#include "queue.h"
 
 #define MAGIC "qoif"
 #define END_MARKER "\x00\x00\x00\x00\x00\x00\x00\x01"
@@ -89,12 +89,12 @@ int isDiff(struct rgba diff){
 }
 
 // Write small difference chunk
-void writeDiff(struct stack *store, struct rgba diff){
+void writeDiff(struct queue *store, struct rgba diff){
     char result = QOI_OP_DIFF;
     result = result | ((2 + diff.r) << 4);
     result = result | ((2 + diff.g) << 2);
     result = result | ((2 + diff.b) << 0);
-    push(store, &result, 1);
+    enqueue(store, &result, 1);
 }
 
 // Check if a large (luma) difference exists
@@ -110,34 +110,34 @@ int isLuma(struct rgba diff){
 }
 
 // Write large (luma) difference chunk
-void writeLuma(struct stack *store, struct rgba diff){
+void writeLuma(struct queue *store, struct rgba diff){
     char result[2] = {0, 0};
     result[0] = QOI_OP_LUMA;
     result[0] = result[0] | (diff.g + 32);
     result[1] = (diff.r - diff.g + 8) << 4;
     result[1] = result[1] | (diff.b - diff.g + 8);
-    push(store, result, 2);
+    enqueue(store, result, 2);
 }
 
 // Write RGB chunk
-void writeRGB(struct stack *store, struct rgba c){
+void writeRGB(struct queue *store, struct rgba c){
     char result[4];
     result[0] = QOI_OP_RGB;
     result[1] = c.r;
     result[2] = c.g;
     result[3] = c.b;
-    push(store, result, 4);
+    enqueue(store, result, 4);
 }
 
 // Write RGBA chunk
-void writeRGBA(struct stack *store, struct rgba c){
+void writeRGBA(struct queue *store, struct rgba c){
     char result[5];
     result[0] = QOI_OP_RGBA;
     result[1] = c.r;
     result[2] = c.g;
     result[3] = c.b;
     result[4] = c.a;
-    push(store, result, 5);
+    enqueue(store, result, 5);
 }
 
 int main(){
@@ -152,8 +152,8 @@ int main(){
     char *rgbabuffer = NULL;
     char *qoibuffer = NULL;
 
-    struct stack *readStack = &(struct stack) { NULL, 0, IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS };
-    struct stack *writeStack = &(struct stack) { NULL, 0, MAX_QOI_SIZE };
+    struct queue *readQueue = &(struct queue) { NULL, 0, 0, IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS };
+    struct queue *writeQueue = &(struct queue) { NULL, 0, 0, MAX_QOI_SIZE };
 
     long readIndex = 0;
     long lastPixel = -1;
@@ -161,21 +161,21 @@ int main(){
     memset(seen, 0, 64 * sizeof(struct rgba));
 
     qoibuffer = malloc(MAX_QOI_SIZE);
-    writeStack->chars = qoibuffer;
+    writeQueue->chars = qoibuffer;
     rgbabuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS);
-    readStack->chars = rgbabuffer;
+    readQueue->chars = rgbabuffer;
 
-    push(writeStack, MAGIC, 4);
-    pushl(writeStack, (char *) &IMAGE_WIDTH, 4);
-    pushl(writeStack, (char *) &IMAGE_HEIGHT, 4);
-    pushc(writeStack, CHANNELS);
-    pushc(writeStack, COLORSPACE);
+    enqueue(writeQueue, MAGIC, 4);
+    enqueuel(writeQueue, (char *) &IMAGE_WIDTH, 4);
+    enqueuel(writeQueue, (char *) &IMAGE_HEIGHT, 4);
+    enqueuec(writeQueue, CHANNELS);
+    enqueuec(writeQueue, COLORSPACE);
 
-    pushFromFile("assets/test.rgb", readStack);
+    enqueueFromFile("assets/test.rgb", readQueue);
 
     lastPixel = IMAGE_HEIGHT * IMAGE_WIDTH;
     for(readIndex = 0; readIndex < lastPixel; readIndex++){
-        popPseudoQueue(readStack, colors, CHANNELS);
+        dequeue(readQueue, colors, CHANNELS);
         current.r = colors[0];
         current.g = colors[1];
         current.b = colors[2];
@@ -191,12 +191,12 @@ int main(){
         if (colorsEqual(diff)) {
             runs++;
             if (runs == 62 || (readIndex + 1) == lastPixel){
-                pushc(writeStack, QOI_OP_RUN | (runs - 1));
+                enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
                 runs = 0;
             }
             goto endloop;
         } else if (runs > 0) {
-            pushc(writeStack, QOI_OP_RUN | (runs - 1));
+            enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
             runs = 0;
             // write runs and then process current color
         }
@@ -204,27 +204,27 @@ int main(){
         // Check for indexes
         matchIndex = colorIndex(current, seen);
         if (matchIndex != -1) {
-            pushc(writeStack, QOI_OP_INDEX | matchIndex);
+            enqueuec(writeQueue, QOI_OP_INDEX | matchIndex);
             goto endloop;
         }
 
         // Check for small difference
         if (isDiff(diff)) {
-            writeDiff(writeStack, diff);
+            writeDiff(writeQueue, diff);
             goto endloop;
         }
 
         // Check for luma
         if (isLuma(diff)) {
-            writeLuma(writeStack, diff);
+            writeLuma(writeQueue, diff);
             goto endloop;
         }
 
         // no compression matches
         if (CHANNELS == 3 || current.a == prev.a){
-            writeRGB(writeStack, current);
+            writeRGB(writeQueue, current);
         } else {
-            writeRGBA(writeStack, current);
+            writeRGBA(writeQueue, current);
         }
 
         // setup everything for next iteration
@@ -235,9 +235,9 @@ endloop:
         prev.a = current.a;
     }
 
-    push(writeStack, END_MARKER, 8);
+    enqueue(writeQueue, END_MARKER, 8);
 
-    popToFile("out/mine.qoi", writeStack);
+    dequeueToFile("out/mine.qoi", writeQueue);
 
     free(qoibuffer);
     qoibuffer = NULL;
