@@ -10,8 +10,8 @@ make "${1}"
 echo mine.qoi
 time ./bin/qoie
 echo test.qoi
-time ./bin/qoitestrgb
-#time ./bin/qoitestrgba
+#time ./bin/qoitestrgb
+time ./bin/qoitestrgba
 cmp out/test.qoi out/mine.qoi || true
 echo mine.qoi
 xxd out/mine.qoi | head -n 5

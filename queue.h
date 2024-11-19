@@ -8,7 +8,7 @@
 #define ERR_QUEUE_FILE_IO (1 << 9)
 
 // 4 MB block size for writes
-#define MAX_BLOCK_SIZE (4 * 1024 * 1024)
+#define MAX_BLOCK_SIZE (3 * 1024 * 1024)
 
 struct queue {
     char *chars;
@@ -156,23 +156,28 @@ int dequeueToFile(char *writeFilename, struct queue *store){
 }
 
 // Enqueue MAX_BLOCK_SIZE bytes from a file into store->chars
-int enqueueChunkFromFile(FILE *readFile, struct queue *store){
+int enqueueBytesFromFile(FILE *readFile, struct queue *store, int size){
     int read = 0;
-    if (store->pos + MAX_BLOCK_SIZE > store->cap){
+    if (store->pos + size > store->cap){
         return ERR_QUEUE_OUT_OF_MEMORY;;
     }
     if(ferror(readFile)){
         return ERR_QUEUE_FILE_IO;
     }
     
-    read = fread(store->chars, 1, MAX_BLOCK_SIZE, readFile);
+    read = fread(store->chars, 1, size, readFile);
     store->pos = store->pos + read;
     return read;
 }
 
+// Enqueue MAX_BLOCK_SIZE bytes from a file into store->chars
+int enqueueBlockFromFile(FILE *readFile, struct queue *store){
+    return enqueueBytesFromFile(readFile, store, MAX_BLOCK_SIZE);
+}
+
 // Dequeue MAX_BLOCK_SIZE bytes in store->chars to a file
-int dequeueChunkToFile(FILE *writeFile, struct queue *store){
-    int write = 0;
+int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
+    int difference = 0;
     if (store->pos == 0){
         return ERR_QUEUE_EMPTY;
     }
@@ -180,7 +185,17 @@ int dequeueChunkToFile(FILE *writeFile, struct queue *store){
         return ERR_QUEUE_FILE_IO;
     }
 
-    write = fwrite(store->chars, 1, MAX_BLOCK_SIZE, writeFile);
-    store->pos = store->pos - write;
-    return write;
+    difference = store->pos - store->base;
+    size = (size > difference) ? difference : size;
+    fwrite(store->chars, 1, size, writeFile);
+    store->pos = store->pos - difference;
+    if(store->pos < 0){
+        store->pos = 0;
+    }
+    return difference;
+}
+
+// Dequeue MAX_BLOCK_SIZE bytes in store->chars to a file
+int dequeueBlockToFile(FILE *writeFile, struct queue *store){
+    return dequeueBytesToFile(writeFile, store, MAX_BLOCK_SIZE);
 }
