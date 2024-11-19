@@ -23,10 +23,23 @@
 #define QOI_OP_LUMA  (0x80)
 #define QOI_OP_RUN   (0xc0)
 
-int IMAGE_WIDTH = 366;
-int IMAGE_HEIGHT = 206;
-char CHANNELS = 4;
-char COLORSPACE = 1;
+/*
+// test.jpg / test.rgb / test.rgba
+const int IMAGE_WIDTH = 366;
+const int IMAGE_HEIGHT = 206;
+const char CHANNELS = 4;
+const char COLORSPACE = 1;
+const char *readFilename = "assets/test.rgba";
+const char *writeFilename = "out/mine.qoi";
+*/
+
+//1464x823
+const int IMAGE_WIDTH = 1464;
+const int IMAGE_HEIGHT = 823;
+const char CHANNELS = 4;
+const char COLORSPACE = 1;
+const char *readFilename = "assets/q1k3.rgba";
+const char *writeFilename = "out/mine.qoi";
 
 struct rgba {
     int8_t r;
@@ -155,9 +168,6 @@ int main(){
     long lastByte = -1;
     long lastPixel = -1;
 
-    char *readFilename = "assets/test.rgba";
-    char *writeFilename = "out/mine.qoi";
-
     FILE *readFile = NULL;
     FILE *writeFile = NULL;
 
@@ -259,6 +269,8 @@ endloop:
             prev.a = current.a;
         }
 
+        readQueue->base = 0;
+        readQueue->pos = 0;
         lastByte = dequeueBytesToFile(writeFile, writeQueue, lastByte);
         if(lastByte == ERR_QUEUE_FILE_IO){
             break;

@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#define ERR_QUEUE_OUT_OF_MEMORY (1 << 0)
-#define ERR_QUEUE_INVALID_SIZE (1 << 1)
-#define ERR_QUEUE_EMPTY (1 << 2)
-#define ERR_QUEUE_FILE_OPEN (1 << 8)
-#define ERR_QUEUE_FILE_IO (1 << 9)
+#define ERR_QUEUE_OUT_OF_MEMORY (-1 * (1 << 0))
+#define ERR_QUEUE_INVALID_SIZE (-1 * (1 << 1))
+#define ERR_QUEUE_EMPTY (-1 * (1 << 2))
+#define ERR_QUEUE_FILE_OPEN (-1 * (1 << 8))
+#define ERR_QUEUE_FILE_IO (-1 * (1 << 9))
 
 // 4 MB block size for writes
 #define MAX_BLOCK_SIZE (3 * 1024 * 1024)
