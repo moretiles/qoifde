@@ -7,7 +7,7 @@
 #define ERR_QUEUE_FILE_OPEN (-1 * (1 << 8))
 #define ERR_QUEUE_FILE_IO (-1 * (1 << 9))
 
-// 4 MB block size for writes
+// 3 MB block size for writes
 #define MAX_BLOCK_SIZE (3 * 1024 * 1024)
 
 struct queue {
@@ -48,10 +48,13 @@ int dequeue(struct queue *store, char *data, int size){
         return ERR_QUEUE_OUT_OF_MEMORY;
     }
 
+    /*
     int i = 0;
     for(i = 0; i < size; i++){
         data[i] = store->chars[store->base + i];
     }
+    */
+    memcpy(data, store->chars + store->base, size);
     store->base = store->base + size;
     return 0;
 }
@@ -65,10 +68,13 @@ int enqueue(struct queue *store, char *data, int size){
         return ERR_QUEUE_OUT_OF_MEMORY;
     }
 
+    /*
     int i = 0;
     for(i = 0; i < size; i++){
         store->chars[store->pos + i] = data[i];
     }
+    */
+    memcpy(store->chars + store->pos, data, size);
     store->pos = store->pos + size;
     return 0;
 }
@@ -200,7 +206,7 @@ int dequeueBlockToFile(FILE *writeFile, struct queue *store){
     return dequeueBytesToFile(writeFile, store, MAX_BLOCK_SIZE);
 }
 
-// Clear the queue data (by saying there is nothing in it)
+// Clear the queue (pretend there is nothing in it)
 void clear(struct queue *store){
     store->base = 0;
     store->pos = 0;

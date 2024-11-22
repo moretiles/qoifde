@@ -179,12 +179,10 @@ int main(){
 
     memset(seen, 0, 64 * sizeof(struct rgba));
 
-    //qoibuffer = malloc(MAX_QOI_SIZE);
-    qoibuffer = malloc(MAX_BLOCK_SIZE);
-    writeQueue->chars = qoibuffer;
-    //rgbabuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS);
     rgbabuffer = malloc(MAX_BLOCK_SIZE);
     readQueue->chars = rgbabuffer;
+    qoibuffer = malloc(14 + (5 * (MAX_BLOCK_SIZE / 4)) + 8);
+    writeQueue->chars = qoibuffer;
 
     readFile = fopen(readFilename, "rb");
     writeFile = fopen(writeFilename, "wb");
