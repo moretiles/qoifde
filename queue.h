@@ -7,8 +7,9 @@
 #define ERR_QUEUE_FILE_OPEN (-1 * (1 << 8))
 #define ERR_QUEUE_FILE_IO (-1 * (1 << 9))
 
-// 3 MB block size for writes
+#ifndef MAX_BLOCK_SIZE
 #define MAX_BLOCK_SIZE (3 * 1024 * 1024)
+#endif
 
 struct queue {
     char *chars;
@@ -107,6 +108,7 @@ int enqueuec(struct queue *store, char c){
     return 0;
 }
 
+/*
 // Enqueue all the data in a file into store->chars
 int enqueueFromFile(char *readFilename, struct queue *store){
     FILE *readFile = NULL;
@@ -160,9 +162,11 @@ int dequeueToFile(char *writeFilename, struct queue *store){
     fclose(writeFile);
     return 0;
 }
+*/
 
 // Enqueue MAX_BLOCK_SIZE bytes from a file into store->chars
-int enqueueBytesFromFile(FILE *readFile, struct queue *store, int size){
+//int enqueueBytesFromFile(FILE *readFile, struct queue *store, int size){
+int fenqueue(FILE *readFile, struct queue *store, int size){
     int read = 0;
     if (store->pos + size > store->cap){
         return ERR_QUEUE_OUT_OF_MEMORY;;
@@ -176,13 +180,9 @@ int enqueueBytesFromFile(FILE *readFile, struct queue *store, int size){
     return read;
 }
 
-// Enqueue MAX_BLOCK_SIZE bytes from a file into store->chars
-int enqueueBlockFromFile(FILE *readFile, struct queue *store){
-    return enqueueBytesFromFile(readFile, store, MAX_BLOCK_SIZE);
-}
-
 // Dequeue MAX_BLOCK_SIZE bytes in store->chars to a file
-int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
+//int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
+int fdequeue(FILE *writeFile, struct queue *store, int size){
     int difference = 0;
     if (store->pos == 0){
         return ERR_QUEUE_EMPTY;
@@ -199,15 +199,4 @@ int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
         store->pos = 0;
     }
     return difference;
-}
-
-// Dequeue MAX_BLOCK_SIZE bytes in store->chars to a file
-int dequeueBlockToFile(FILE *writeFile, struct queue *store){
-    return dequeueBytesToFile(writeFile, store, MAX_BLOCK_SIZE);
-}
-
-// Clear the queue (pretend there is nothing in it)
-void clear(struct queue *store){
-    store->base = 0;
-    store->pos = 0;
 }

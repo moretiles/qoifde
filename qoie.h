@@ -8,10 +8,9 @@
 #define MAGIC "qoif"
 #define END_MARKER "\x00\x00\x00\x00\x00\x00\x00\x01"
 
-#define HEADER_SIZE_BYTES (4 + 4 + 4 + 1 + 1)
-#define MAX_CHUNKS_SIZE_BYTES (IMAGE_HEIGHT * IMAGE_WIDTH * (CHANNELS + 1))
-#define FOOTER_SIZE_BYTES 8
-#define MAX_QOI_SIZE (HEADER_SIZE_BYTES + MAX_CHUNKS_SIZE_BYTES + FOOTER_SIZE_BYTES)
+#ifndef MAX_BLOCK_SIZE
+#define MAX_BLOCK_SIZE (3 * 1024 * 1024)
+#endif
 
 // full byte check
 #define QOI_OP_RGB   (0xfe)
@@ -22,24 +21,6 @@
 #define QOI_OP_DIFF  (0x40)
 #define QOI_OP_LUMA  (0x80)
 #define QOI_OP_RUN   (0xc0)
-
-/*
-// test.jpg / test.rgb / test.rgba
-const int IMAGE_WIDTH = 366;
-const int IMAGE_HEIGHT = 206;
-const char CHANNELS = 4;
-const char COLORSPACE = 1;
-const char *readFilename = "assets/test.rgba";
-const char *writeFilename = "out/mine.qoi";
-*/
-
-//1464x823
-const int IMAGE_WIDTH = 1464;
-const int IMAGE_HEIGHT = 823;
-const char CHANNELS = 4;
-const char COLORSPACE = 1;
-const char *readFilename = "assets/q1k3.rgba";
-const char *writeFilename = "out/mine.qoi";
 
 struct rgba {
     int8_t r;
@@ -153,7 +134,16 @@ void writeRGBA(struct queue *store, struct rgba c){
     enqueue(store, result, 5);
 }
 
-int main(){
+/*
+ * Read rgba pixels from infile and output an encoded qoi image as outfile
+ * The encoded image will have headers of width, height, channels, colorspace
+ */
+int encodeQOI(char *infile, char *outfile, int width, int height, char channels, char colorspace){
+    int err = 0;
+    int cont = 1;
+    int read = 0;
+    int write = 0;
+
     struct rgba seen[64];
     struct rgba prev = { 0, 0, 0, 255 };
     struct rgba current = { 0, 0, 0, 255 };
@@ -162,128 +152,138 @@ int main(){
     char matchIndex = 0;
     char runs = 0;
 
-    int converting = 1;
-
-    long readIndex = 0;
-    long lastByte = -1;
-    long lastPixel = -1;
-
     FILE *readFile = NULL;
     FILE *writeFile = NULL;
 
-    char *rgbabuffer = NULL;
-    char *qoibuffer = NULL;
+    char *rgbaBuffer = NULL;
+    char *qoiBuffer = NULL;
 
     struct queue *readQueue = &(struct queue) { NULL, 0, 0, MAX_BLOCK_SIZE };
     struct queue *writeQueue = &(struct queue) { NULL, 0, 0, MAX_BLOCK_SIZE };
 
     memset(seen, 0, 64 * sizeof(struct rgba));
 
-    rgbabuffer = malloc(MAX_BLOCK_SIZE);
-    readQueue->chars = rgbabuffer;
-    qoibuffer = malloc(14 + (5 * (MAX_BLOCK_SIZE / 4)) + 8);
-    writeQueue->chars = qoibuffer;
+    rgbaBuffer = malloc(MAX_BLOCK_SIZE);
+    readQueue->chars = rgbaBuffer;
+    qoiBuffer = malloc(5 * MAX_BLOCK_SIZE / 4);
+    writeQueue->chars = qoiBuffer;
 
-    readFile = fopen(readFilename, "rb");
-    writeFile = fopen(writeFilename, "wb");
+    readFile = fopen(infile, "rb");
+    writeFile = fopen(outfile, "wb");
     if(readFile == NULL || writeFile == NULL){
         return 1;
     }
 
     enqueue(writeQueue, MAGIC, 4);
-    enqueuel(writeQueue, (char *) &IMAGE_WIDTH, 4);
-    enqueuel(writeQueue, (char *) &IMAGE_HEIGHT, 4);
-    enqueuec(writeQueue, CHANNELS);
-    enqueuec(writeQueue, COLORSPACE);
+    enqueuel(writeQueue, (char *) &width, 4);
+    enqueuel(writeQueue, (char *) &height, 4);
+    enqueuec(writeQueue, channels);
+    enqueuec(writeQueue, colorspace);
 
-    dequeueBytesToFile(writeFile, writeQueue, 14);
-
-    //enqueueFromFile("assets/test.rgb", readQueue);
-
-    while(converting){
-        lastByte = enqueueBlockFromFile(readFile, readQueue);
-        if(lastByte == 0 || lastByte == ERR_QUEUE_FILE_IO || lastByte % CHANNELS != 0){
-            break;
-        }
-        lastPixel = lastByte / CHANNELS;
-        for(readIndex = 0; readIndex < lastPixel; readIndex++){
-            dequeue(readQueue, colors, CHANNELS);
-            current.r = colors[0];
-            current.g = colors[1];
-            current.b = colors[2];
-            if (CHANNELS == 4){
-                current.a = colors[3];
-            }
-
-            /*
-             * Checks for runs
-             * All the logic involving runs needs to be kept in main
-             */
-            diff = colorsDiff(current, prev);
-            if (colorsEqual(diff)) {
-                runs++;
-                if (runs == 62 || (readIndex + 1) == lastPixel){
-                    enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
-                    runs = 0;
-                }
-                goto endloop;
-            } else if (runs > 0) {
-                enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
-                runs = 0;
-                // write runs and then process current color
-            }
-
-            // Check for indexes
-            matchIndex = colorIndex(current, seen);
-            if (matchIndex != -1) {
-                enqueuec(writeQueue, QOI_OP_INDEX | matchIndex);
-                goto endloop;
-            }
-
-            // Check for small difference
-            if (isDiff(diff)) {
-                writeDiff(writeQueue, diff);
-                goto endloop;
-            }
-
-            // Check for luma
-            if (isLuma(diff)) {
-                writeLuma(writeQueue, diff);
-                goto endloop;
-            }
-
-            // no compression matches
-            if (CHANNELS == 3 || current.a == prev.a){
-                writeRGB(writeQueue, current);
-            } else {
-                writeRGBA(writeQueue, current);
-            }
-
-            // setup everything for next iteration
-endloop:
-            prev.r = current.r;
-            prev.g = current.g;
-            prev.b = current.b;
-            prev.a = current.a;
-        }
-
-        clear(readQueue);
-        lastByte = dequeueBytesToFile(writeFile, writeQueue, lastByte);
-        if(lastByte == ERR_QUEUE_FILE_IO){
-            break;
-        }
-
+    if(fdequeue(writeFile, writeQueue, 14) <= 0){
+        cont = 0;
+        err = 1;
+    }
+    if(fenqueue(readFile, readQueue, MAX_BLOCK_SIZE) <= 0 || readQueue->pos % channels != 0){
+        cont = 0;
+        err = 1;
     }
 
-    enqueue(writeQueue, END_MARKER, 8);
-    dequeueBytesToFile(writeFile, writeQueue, 8);
+    while(cont){
+        dequeue(readQueue, colors, channels);
+        current.r = colors[0];
+        current.g = colors[1];
+        current.b = colors[2];
+        if (channels == 4){
+            current.a = colors[3];
+        }
 
-    //dequeueToFile("out/mine.qoi", writeQueue);
+        /*
+         * Checks for runs
+         * All the logic involving runs needs to be kept in main
+         */
+        diff = colorsDiff(current, prev);
+        if (colorsEqual(diff)) {
+            runs = runs + 1;
+            if (runs == 62){
+                enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
+                runs = 0;
+            }
+            goto endloop;
+        } else if (runs > 0) {
+            enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
+            runs = 0;
+            // write runs and then process current color
+        }
 
-    free(qoibuffer);
-    qoibuffer = NULL;
-    free(rgbabuffer);
-    rgbabuffer = NULL;
+        // Check for indexes
+        matchIndex = colorIndex(current, seen);
+        if (matchIndex != -1) {
+            enqueuec(writeQueue, QOI_OP_INDEX | matchIndex);
+            goto endloop;
+        }
 
-    return 0;
+        // Check for small difference
+        if (isDiff(diff)) {
+            writeDiff(writeQueue, diff);
+            goto endloop;
+        }
+
+        // Check for luma
+        if (isLuma(diff)) {
+            writeLuma(writeQueue, diff);
+            goto endloop;
+        }
+
+        // no compression matches
+        if (channels == 3 || current.a == prev.a){
+            writeRGB(writeQueue, current);
+        } else {
+            writeRGBA(writeQueue, current);
+        }
+
+        // setup everything for next iteration
+endloop:
+        prev.r = current.r;
+        prev.g = current.g;
+        prev.b = current.b;
+        prev.a = current.a;
+
+        if(readQueue->pos == readQueue->base){
+            readQueue->pos = 0;
+            readQueue->base = 0;
+            write = fdequeue(writeFile, writeQueue, writeQueue->pos);
+            if(write <= 0){
+                cont = 0;
+            }
+            if(write < 0){
+                err = 1;
+                break;
+            }
+            read = fenqueue(readFile, readQueue, MAX_BLOCK_SIZE);
+            if(read <= 0){
+                cont = 0;
+            }
+            if(read < 0 || read % channels != 0){
+                err = 1;
+                break;
+            }
+        }
+    }
+    if(err == 0){
+        if(runs != 0){
+            enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
+            runs = 0;
+            fdequeue(writeFile, writeQueue, 1);
+        }
+        enqueue(writeQueue, END_MARKER, 8);
+        fdequeue(writeFile, writeQueue, 8);
+    }
+
+    free(qoiBuffer);
+    qoiBuffer = NULL;
+    free(rgbaBuffer);
+    rgbaBuffer = NULL;
+
+    return err;
 }
