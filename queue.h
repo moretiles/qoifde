@@ -80,6 +80,7 @@ int enqueue(struct queue *store, char *data, int size){
     return 0;
 }
 
+/*
 // Enqueue size bytes to store->chars reversing byte order
 int enqueuel(struct queue *store, char *data, int size){
     if (size <= 0){
@@ -96,6 +97,7 @@ int enqueuel(struct queue *store, char *data, int size){
     store->pos = store->pos + size;
     return 0;
 }
+*/
 
 // Enqueue a single byte to store->chars
 int enqueuec(struct queue *store, char c){
@@ -184,6 +186,7 @@ int fenqueue(FILE *readFile, struct queue *store, int size){
 //int dequeueBytesToFile(FILE *writeFile, struct queue *store, int size){
 int fdequeue(FILE *writeFile, struct queue *store, int size){
     int difference = 0;
+    int write = 0;
     if (store->pos == 0){
         return ERR_QUEUE_EMPTY;
     }
@@ -193,10 +196,10 @@ int fdequeue(FILE *writeFile, struct queue *store, int size){
 
     difference = store->pos - store->base;
     size = (size > difference) ? difference : size;
-    fwrite(store->chars, 1, size, writeFile);
+    write = fwrite(store->chars, 1, size, writeFile);
     store->pos = store->pos - difference;
     if(store->pos < 0){
         store->pos = 0;
     }
-    return difference;
+    return write;
 }

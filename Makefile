@@ -7,6 +7,6 @@ gdb: example.c qoie.h queue.h tags
 release: example.c qoie.h queue.h tags 
 	cc example.c -o bin/qoie -Wall -Wextra -O3
 
-# uncomment this if you want to use ctags
-#tags: *.c *.h
-	#ctags -R
+# There might be a better way to do this
+tags: *.c *.h
+	ctags -R || true

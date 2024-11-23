@@ -167,6 +167,9 @@ int encodeQOI(char *infile, char *outfile, int width, int height, char channels,
     readQueue->chars = rgbaBuffer;
     qoiBuffer = malloc(5 * MAX_BLOCK_SIZE / 4);
     writeQueue->chars = qoiBuffer;
+    if(rgbaBuffer == NULL || qoiBuffer == NULL){
+        return 2;
+    }
 
     readFile = fopen(infile, "rb");
     writeFile = fopen(outfile, "wb");
@@ -174,9 +177,20 @@ int encodeQOI(char *infile, char *outfile, int width, int height, char channels,
         return 1;
     }
 
+    // Magic bytes
     enqueue(writeQueue, MAGIC, 4);
-    enqueuel(writeQueue, (char *) &width, 4);
-    enqueuel(writeQueue, (char *) &height, 4);
+
+    // Need to store a big or little endian int as a big endian int
+    enqueuec(writeQueue, width >> 24);
+    enqueuec(writeQueue, width >> 16);
+    enqueuec(writeQueue, width >> 8);
+    enqueuec(writeQueue, width >> 0);
+    enqueuec(writeQueue, height >> 24);
+    enqueuec(writeQueue, height >> 16);
+    enqueuec(writeQueue, height >> 8);
+    enqueuec(writeQueue, height >> 0);
+
+    // Store channels and colorspace as single bytes
     enqueuec(writeQueue, channels);
     enqueuec(writeQueue, colorspace);
 
@@ -258,15 +272,13 @@ endloop:
             }
             if(write < 0){
                 err = 1;
-                break;
             }
             read = fenqueue(readFile, readQueue, MAX_BLOCK_SIZE);
-            if(read <= 0){
+            if(read <= 0 || read % channels != 0){
                 cont = 0;
             }
-            if(read < 0 || read % channels != 0){
+            if(read < 0){
                 err = 1;
-                break;
             }
         }
     }
