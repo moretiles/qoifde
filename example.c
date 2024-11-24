@@ -1,4 +1,4 @@
-#include "qoie.h"
+#include "qoi.h"
 
 int main(){
     int err = 0;

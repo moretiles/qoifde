@@ -1,12 +1,31 @@
-debug: example.c qoie.h queue.h tags 
-	cc example.c -o bin/qoie -Wall -Wextra -g3 -fsanitize=address -fsanitize=undefined
+CFLAGS=-Wall -Wextra
+DEBUG=-g3
+SAN=-fsanitize=address -fsanitize=undefined
+OPTIMIZE=-O3 -fno-strict-aliasing -flto
 
-gdb: example.c qoie.h queue.h tags 
-	cc example.c -o bin/qoie -Wall -Wextra -g3
+OBJS = obj/rgba.o obj/queue.o obj/qoi.o
 
-release: example.c qoie.h queue.h tags 
-	cc example.c -o bin/qoie -Wall -Wextra -O3
+obj/%.o : %.c %.h
+	cc -c -o $@ $< ${CFLAGS}
+
+obj/rgba.o : rgba.c rgba.h
+obj/queue.o : queue.c queue.h
+
+obj/qoi.o : qoi.c qoi.h obj/rgba.o obj/queue.o
+	cc -c -o $@ $< ${CFLAGS}
+
+debug: example.c ${OBJS} tags 
+	cc example.c ${OBJS} -o bin/qoi ${CFLAGS} ${LINKFLAGS} ${DEBUG} ${SAN}
+
+gdb: example.c ${OBJS} tags 
+	cc example.c ${OBJS} -o bin/qoi ${CFLAGS} ${LINKFLAGS} ${DEBUG}
+
+release: example.c ${OBJS} tags 
+	cc example.c ${OBJS} -o bin/qoi ${CFLAGS} ${LINKFLAGS} ${OPTIMIZE}
 
 # There might be a better way to do this
 tags: *.c *.h
 	ctags -R || true
+
+clean:
+	rm -f tags bin/qoi obj/rgba.o obj/queue.o obj/qoi.o

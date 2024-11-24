@@ -7,7 +7,7 @@ if [[ -z "${1}" ]]; then
 fi
 
 make "${1}"
-time ./bin/qoie
+time ./bin/qoi
 #time ./bin/qoitestrgb
 #time ./bin/qoitestrgba
 #time ./bin/qoitestq1k3rgba
