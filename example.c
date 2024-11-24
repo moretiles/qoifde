@@ -29,9 +29,13 @@ int main(){
     int IMAGE_HEIGHT = 2880;
     char CHANNELS = 4;
     char COLORSPACE = 1;
-    char *readFilename = "assets/wall.rgba";
-    char *writeFilename = "out/mine.qoi";
+    char *readFilename = "assets/wall.qoi";
+    char *writeFilename = "out/mine.rgba";
 
-    err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+    //char *readFilename = "assets/wall.rgba";
+    //char *writeFilename = "out/mine.qoi";
+
+    //err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+    err = decodeQOI(readFilename, writeFilename);
     return err;
 }

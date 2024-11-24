@@ -22,43 +22,43 @@
 
 // Check if a small difference exists
 int isDiff(struct rgba diff){
-	char rtest, gtest, btest, atest;
-	rtest = diff.r >= -2 && diff.r <= 1;
-	gtest = diff.g >= -2 && diff.g <= 1;
-	btest = diff.b >= -2 && diff.b <= 1;
-	atest = diff.a == 0;
-	return rtest && gtest && btest && atest;
+    char rtest, gtest, btest, atest;
+    rtest = diff.r >= -2 && diff.r <= 1;
+    gtest = diff.g >= -2 && diff.g <= 1;
+    btest = diff.b >= -2 && diff.b <= 1;
+    atest = diff.a == 0;
+    return rtest && gtest && btest && atest;
 }
 
 // Write small difference chunk
 void writeDiff(struct queue *store, struct rgba diff){
-	char result = QOI_OP_DIFF;
-	result = result | ((2 + diff.r) << 4);
-	result = result | ((2 + diff.g) << 2);
-	result = result | ((2 + diff.b) << 0);
-	enqueue(store, &result, 1);
+    char result = QOI_OP_DIFF;
+    result = result | ((2 + diff.r) << 4);
+    result = result | ((2 + diff.g) << 2);
+    result = result | ((2 + diff.b) << 0);
+    enqueue(store, &result, 1);
 }
 
 // Check if a large (luma) difference exists
 int isLuma(struct rgba diff){
-	char gtest, rgdiff, rtest, bgdiff, btest, atest;
-	gtest = diff.g >= -32 && diff.g <= 31;
-	rgdiff = diff.r - diff.g;
-	rtest = rgdiff >= -8 && rgdiff <= 7;
-	bgdiff = diff.b - diff.g;
-	btest = bgdiff >= -8 && bgdiff <= 7;
-	atest = diff.a == 0;
-	return rtest && gtest && btest && atest;
+    char gtest, rgdiff, rtest, bgdiff, btest, atest;
+    gtest = diff.g >= -32 && diff.g <= 31;
+    rgdiff = diff.r - diff.g;
+    rtest = rgdiff >= -8 && rgdiff <= 7;
+    bgdiff = diff.b - diff.g;
+    btest = bgdiff >= -8 && bgdiff <= 7;
+    atest = diff.a == 0;
+    return rtest && gtest && btest && atest;
 }
 
 // Write large (luma) difference chunk
 void writeLuma(struct queue *store, struct rgba diff){
-	char result[2] = {0, 0};
-	result[0] = QOI_OP_LUMA;
-	result[0] = result[0] | (diff.g + 32);
-	result[1] = (diff.r - diff.g + 8) << 4;
-	result[1] = result[1] | (diff.b - diff.g + 8);
-	enqueue(store, result, 2);
+    char result[2] = {0, 0};
+    result[0] = QOI_OP_LUMA;
+    result[0] = result[0] | (diff.g + 32);
+    result[1] = (diff.r - diff.g + 8) << 4;
+    result[1] = result[1] | (diff.b - diff.g + 8);
+    enqueue(store, result, 2);
 }
 
 // Write RGB chunk
@@ -250,7 +250,8 @@ endloop:
 
 // Store color into seen using specification hashing formula
 void cacheColor(struct rgba *seen, struct rgba color){
-    int pos = (64 + color.r * 3 + color.g * 5 + color.b * 7 + color.a * 11) % 64;
+    int pos = (color.r * 3 + color.g * 5 + color.b * 7 + color.a * 11) % 64;
+    pos = (pos + 64) % 64;
     if(color.r != seen[pos].r || color.g != seen[pos].g || color.b != seen[pos].b || color.a != seen[pos].a){
         seen[pos].r = color.r;
         seen[pos].g = color.g;
@@ -288,8 +289,8 @@ int decodeQOI(char *infile, char *outfile){
     struct rgba prev = { 0, 0, 0, 255 };
     struct rgba diff = { 0, 0, 0, 0 };
 
-    char currentOperation = 0;
-    char lastOperation = 0;
+    uint8_t currentOperation = 0;
+    uint8_t lastOperation = 0xff;
     char lumaSecond = 0;
     char needCaching = 1;
 
@@ -341,13 +342,22 @@ int decodeQOI(char *infile, char *outfile){
         readQueue->base = 0;
     }
 
-    while(cont){
-        dequeuec(readQueue, &currentOperation);
+    read = fenqueue(readFile, readQueue, MAX_BLOCK_SIZE);
+    if(read <= 0){
+        cont = 0;
+    }
+    if(read < 0){
+        err = 1;
+    }
 
-        switch ((uint8_t) currentOperation){
+    while(cont){
+        dequeuec(readQueue, (char *) &currentOperation);
+
+        switch ( currentOperation){
             case QOI_OP_RGBA:
                 exchange(readQueue, writeQueue, 4);
                 needCaching = 1;
+                goto endconv;
                 break;
             case QOI_OP_RGB:
                 exchange(readQueue, writeQueue, 3);
@@ -355,9 +365,10 @@ int decodeQOI(char *infile, char *outfile){
                     enqueuec(writeQueue, 0xff);
                 }
                 needCaching = 1;
+                goto endconv;
                 break;
         }
-        switch (((uint8_t) currentOperation) & 0xc0){
+        switch (currentOperation & 0xc0){
             case QOI_OP_INDEX:
                 if(currentOperation == 0 && currentOperation == lastOperation){
                     writeQueue->pos = writeQueue->pos - 1;
@@ -393,11 +404,13 @@ int decodeQOI(char *infile, char *outfile){
             case QOI_OP_RUN:
                 while(((uint8_t) currentOperation) >= 0xc0){
                     enqueueRgba(writeQueue, prev, channels);
+                    currentOperation -= 1;
                 }
                 needCaching = 0;
                 break;
         }
 
+endconv:
         lastOperation = currentOperation;
 
         if (channels == 3){
@@ -415,7 +428,7 @@ int decodeQOI(char *infile, char *outfile){
             cacheColor(seen, prev);
         }
 
-        if(readQueue->base + 6 > readQueue->pos){
+        if(readQueue->base + 7 > readQueue->pos){
             //readQueue->pos = 0;
             //readQueue->base = 0;
             foldDown(readQueue);
@@ -427,7 +440,7 @@ int decodeQOI(char *infile, char *outfile){
                 err = 1;
             }
         }
-        if(lastOperation != 0 && writeQueue->base + 6 > writeQueue->pos){
+        if(lastOperation != 0 && writeQueue->base + 7 > writeQueue->pos){
             write = fdequeue(writeFile, writeQueue, writeQueue->pos);
             if(write <= 0){
                 cont = 0;
