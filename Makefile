@@ -3,18 +3,18 @@ DEBUG=-g3
 SAN=-fsanitize=address -fsanitize=undefined
 OPTIMIZE=-O3
 
-debug: example.c qoi.h queue.h rgba.h tags 
-	cc example.c -o bin/qoi ${CFLAGS} ${DEBUG} ${SAN}
+debug: example.c qoiconv.h queue.h rgba.h tags 
+	cc example.c -o bin/qoiconv ${CFLAGS} ${DEBUG} ${SAN}
 
-gdb: example.c qoi.h queue.h rgba.h tags 
-	cc example.c -o bin/qoi ${CFLAGS} ${DEBUG}
+gdb: example.c qoiconv.h queue.h rgba.h tags 
+	cc example.c -o bin/qoiconv ${CFLAGS} ${DEBUG}
 
-release: example.c qoi.h queue.h rgba.h tags 
-	cc example.c -o bin/qoi ${CFLAGS} ${OPTIMIZE}
+release: example.c qoiconv.h queue.h rgba.h tags 
+	cc example.c -o bin/qoiconv ${CFLAGS} ${OPTIMIZE}
 
 # There might be a better way to do this
 tags: *.c *.h
 	ctags -R || true
 
 clean:
-	rm -f tags bin/qoi obj/rgba.o obj/queue.o obj/qoi.o
+	rm -f tags bin/qoiconv obj/rgba.o obj/queue.o obj/qoiconv.o

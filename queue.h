@@ -131,7 +131,7 @@ int enqueuec(struct queue *store, char c){
         return ERR_QUEUE_OUT_OF_MEMORY;;
     }
 
-    store->chars[store->pos] = c;
+    *(store->chars + store->pos) = c;
     store->pos = store->pos + 1;
     return 0;
 }
@@ -217,7 +217,7 @@ int fenqueue(FILE *readFile, struct queue *store, int size){
         return ERR_QUEUE_FILE_IO;
     }
 
-    read = fread(store->chars, 1, size, readFile);
+    read = fread(store->chars + store->pos, 1, size, readFile);
     store->pos = store->pos + read;
     return read;
 }

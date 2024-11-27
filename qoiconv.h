@@ -116,13 +116,15 @@ int encodeQOI(char *infile, char *outfile, int width, int height, char channels,
     qoiBuffer = malloc(5 * MAX_BLOCK_SIZE / 4);
     writeQueue->chars = qoiBuffer;
     if(rgbaBuffer == NULL || qoiBuffer == NULL){
-        return 2;
+        err = 2;
+        goto encodeQOI_error;
     }
 
     readFile = fopen(infile, "rb");
     writeFile = fopen(outfile, "wb");
     if(readFile == NULL || writeFile == NULL){
-        return 1;
+        err = 1;
+        goto encodeQOI_error;
     }
 
     // Magic bytes
@@ -171,41 +173,38 @@ int encodeQOI(char *infile, char *outfile, int width, int height, char channels,
                 enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
                 runs = 0;
             }
-            goto endloop;
-        } else if (runs > 0) {
-            enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
-            runs = 0;
-            // write runs and then process current color
-        }
-
-        // Check for indexes
-        matchIndex = colorIndex(current, seen);
-        if (matchIndex != -1) {
-            enqueuec(writeQueue, QOI_OP_INDEX | matchIndex);
-            goto endloop;
-        }
-
-        // Check for small difference
-        if (isDiff(diff)) {
-            writeDiff(writeQueue, diff);
-            goto endloop;
-        }
-
-        // Check for luma
-        if (isLuma(diff)) {
-            writeLuma(writeQueue, diff);
-            goto endloop;
-        }
-
-        // no compression matches
-        if (channels == 3 || current.a == prev.a){
-            writeRGB(writeQueue, current);
         } else {
-            writeRGBA(writeQueue, current);
+            if (runs > 0) {
+                enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
+                runs = 0;
+                // write runs and then process current color
+            }
+
+            // Check for indexes
+            matchIndex = colorIndex(current, seen);
+            if (matchIndex != -1) {
+                enqueuec(writeQueue, QOI_OP_INDEX | matchIndex);
+            }
+
+            // Check for small difference
+            else if (isDiff(diff)) {
+                writeDiff(writeQueue, diff);
+            }
+
+            // Check for luma
+            else if (isLuma(diff)) {
+                writeLuma(writeQueue, diff);
+            }
+
+            // no compression matches
+            else if (channels == 3 || current.a == prev.a){
+                writeRGB(writeQueue, current);
+            } else {
+                writeRGBA(writeQueue, current);
+            }
         }
 
         // setup everything for next iteration
-endloop:
         prev.r = current.r;
         prev.g = current.g;
         prev.b = current.b;
@@ -230,6 +229,7 @@ endloop:
             }
         }
     }
+
     if(err == 0){
         if(runs != 0){
             enqueuec(writeQueue, QOI_OP_RUN | (runs - 1));
@@ -240,6 +240,7 @@ endloop:
         fdequeue(writeFile, writeQueue, 8);
     }
 
+encodeQOI_error:
     free(qoiBuffer);
     qoiBuffer = NULL;
     free(rgbaBuffer);
@@ -280,8 +281,8 @@ int decodeQOI(char *infile, char *outfile){
     int read = 0;
     int write = 0;
 
-    int width = 0;
-    int height = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
     char channels = 0;
     char colorspace = 0;
 
@@ -310,30 +311,32 @@ int decodeQOI(char *infile, char *outfile){
     rgbaBuffer = malloc(MAX_BLOCK_SIZE);
     writeQueue->chars = rgbaBuffer;
     if(rgbaBuffer == NULL || qoiBuffer == NULL){
-        return 2;
+        err = 2;
+        goto decodeQOI_error;
     }
 
     readFile = fopen(infile, "rb");
     writeFile = fopen(outfile, "wb");
     if(readFile == NULL || writeFile == NULL){
-        return 1;
+        err = 1;
+        goto decodeQOI_error;
     }
 
     if(fenqueue(readFile, readQueue, 14) != 14){
         cont = 0;
         err = 1;
     } else {
-        width   = readQueue->chars[4 + 0] << 24;
-        width  |= readQueue->chars[4 + 1] << 16;
-        width  |= readQueue->chars[4 + 2] << 8;
-        width  |= readQueue->chars[4 + 3] << 0;
-        height  = readQueue->chars[8 + 0] << 24;
-        height |= readQueue->chars[8 + 1] << 16;
-        height |= readQueue->chars[8 + 2] << 8;
-        height |= readQueue->chars[8 + 3] << 0;
+        width   = (uint8_t) readQueue->chars[4 + 0] << 24;
+        width  += (uint8_t) readQueue->chars[4 + 1] << 16;
+        width  += (uint8_t) readQueue->chars[4 + 2] << 8;
+        width  += (uint8_t) readQueue->chars[4 + 3];
+        height  = (uint8_t) readQueue->chars[8 + 0] << 24;
+        height += (uint8_t) readQueue->chars[8 + 1] << 16;
+        height += (uint8_t) readQueue->chars[8 + 2] << 8;
+        height += (uint8_t) readQueue->chars[8 + 3];
         channels = readQueue->chars[12];
         colorspace = readQueue->chars[13];
-        if(strncmp(readQueue->chars, MAGIC, 4) != 0 || width < 0 || height < 0 || \
+        if(strncmp(readQueue->chars, MAGIC, 4) != 0 || ((int32_t) width) < 0 || ((int32_t) height) < 0 || \
                 channels < 3 || channels > 4 || colorspace < 0 || colorspace > 1){
             cont = 0;
             err = 1;
@@ -353,25 +356,27 @@ int decodeQOI(char *infile, char *outfile){
     while(cont){
         dequeuec(readQueue, (char *) &currentOperation);
 
-        switch ( currentOperation){
-            case QOI_OP_RGBA:
-                exchange(readQueue, writeQueue, 4);
-                needCaching = 1;
-                goto endconv;
-                break;
-            case QOI_OP_RGB:
-                exchange(readQueue, writeQueue, 3);
-                if(channels == 4){
-                    enqueuec(writeQueue, 0xff);
-                }
-                needCaching = 1;
-                goto endconv;
-                break;
-        }
+        /*
+           switch ( currentOperation){
+           case QOI_OP_RGBA:
+           exchange(readQueue, writeQueue, 4);
+           needCaching = 1;
+           goto endconv;
+           break;
+           case QOI_OP_RGB:
+           exchange(readQueue, writeQueue, 3);
+           if(channels == 4){
+           enqueuec(writeQueue, 0xff);
+           }
+           needCaching = 1;
+           goto endconv;
+           break;
+           }
+           */
         switch (currentOperation & 0xc0){
             case QOI_OP_INDEX:
                 if(currentOperation == 0 && currentOperation == lastOperation){
-                    writeQueue->pos = writeQueue->pos - 1;
+                    writeQueue->pos = writeQueue->pos - channels;
                     cont = 0;
                 }else{
                     enqueueRgba(writeQueue, seen[0xff & currentOperation], channels);
@@ -402,15 +407,27 @@ int decodeQOI(char *infile, char *outfile){
                 needCaching = 1;
                 break;
             case QOI_OP_RUN:
-                while(((uint8_t) currentOperation) >= 0xc0){
-                    enqueueRgba(writeQueue, prev, channels);
-                    currentOperation -= 1;
+                if(currentOperation == QOI_OP_RGB){
+                    exchange(readQueue, writeQueue, 3);
+                    if(channels == 4){
+                        enqueuec(writeQueue, 0xff);
+                    } 
+                    needCaching = 1;
+                    break;
+                } else if (currentOperation == QOI_OP_RGBA){
+                    exchange(readQueue, writeQueue, 4);
+                    needCaching = 1;
+                    break;
+                } else{
+                    while(((uint8_t) currentOperation) >= 0xc0){
+                        enqueueRgba(writeQueue, prev, channels);
+                        currentOperation -= 1;
+                    }
+                    needCaching = 0;
+                    break;
                 }
-                needCaching = 0;
-                break;
         }
 
-endconv:
         lastOperation = currentOperation;
 
         if (channels == 3){
@@ -426,13 +443,17 @@ endconv:
 
         if (needCaching == 1){
             cacheColor(seen, prev);
+            needCaching = 0;
         }
 
-        if(readQueue->base + 7 > readQueue->pos){
-            //readQueue->pos = 0;
-            //readQueue->base = 0;
-            foldDown(readQueue);
-            read = fenqueue(readFile, readQueue, MAX_BLOCK_SIZE);
+        if(lastOperation != 0 && readQueue->base + 8 >= readQueue->pos){
+            if(readQueue->base != readQueue->pos){
+                foldDown(readQueue);
+            } else {
+                readQueue->pos = 0;
+                readQueue->base = 0;
+            }
+            read = fenqueue(readFile, readQueue, MAX_BLOCK_SIZE - readQueue->pos);
             if(read <= 0){
                 cont = 0;
             }
@@ -440,7 +461,8 @@ endconv:
                 err = 1;
             }
         }
-        if(lastOperation != 0 && writeQueue->base + 7 > writeQueue->pos){
+
+        if(writeQueue->pos >= MAX_BLOCK_SIZE - 64){
             write = fdequeue(writeFile, writeQueue, writeQueue->pos);
             if(write <= 0){
                 cont = 0;
@@ -452,6 +474,7 @@ endconv:
     }
 
     if(err == 0 && writeQueue->pos > 0){
+        //write = fdequeue(writeFile, writeQueue, writeQueue->pos - (writeQueue->pos % channels));
         write = fdequeue(writeFile, writeQueue, writeQueue->pos);
         if(write <= 0){
             cont = 0;
@@ -461,6 +484,7 @@ endconv:
         }
     }
 
+decodeQOI_error:
     free(qoiBuffer);
     qoiBuffer = NULL;
     free(rgbaBuffer);

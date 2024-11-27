@@ -1,5 +1,8 @@
-bin
+obj
 assets
+
+bin
 out
+
 tags
 .gdb_history
