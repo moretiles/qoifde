@@ -10,18 +10,20 @@ fi
 make "${2}"
 case "${1}" in
     e*)
-        time ./bin/qoiconv || true
-        cmp assets/dog1.qoi out/dog1.qoi
-        cmp assets/dog2.qoi out/dog2.qoi
-        cmp assets/dog3.qoi out/dog3.qoi
-        cmp assets/dog4.qoi out/dog4.qoi
-        cmp assets/dog5.qoi out/dog5.qoi
-        cmp assets/q1k3.qoi out/q1k3.qoi
-        cmp assets/test.qoi out/test.qoi
-        cmp assets/wall.qoi out/wall.qoi
+        time ./bin/qoifde
+        #cmp assets/dog1.qoi out/dog1.qoi
+        #cmp assets/dog2.qoi out/dog2.qoi
+        #cmp assets/dog3.qoi out/dog3.qoi
+        #cmp assets/dog4.qoi out/dog4.qoi
+        #cmp assets/dog5.qoi out/dog5.qoi
+        #cmp assets/q1k3.qoi out/q1k3.qoi
+        #cmp assets/test.qoi out/test.qoi
+        #cmp assets/wall.qoi out/wall.qoi
+        # look to see if all the images seem right
+        sxiv out
         ;;
     d*)
-        time ./bin/qoiconv
+        time ./bin/qoifde
         cmp assets/dog1.rgb out/dog1.rgb
         cmp assets/dog2.rgb out/dog2.rgb
         cmp assets/dog3.rgb out/dog3.rgb

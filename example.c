@@ -106,16 +106,14 @@ int main(){
     err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
     */
 
-    /*
-       err = decodeQOI("./assets/dog5.qoi", "./out/dog5.rgb");
-       err = decodeQOI("./assets/test.qoi", "./out/test.rgb");
-       err = decodeQOI("./assets/q1k3.qoi", "./out/q1k3.rgb");
-       err = decodeQOI("./assets/dog3.qoi", "./out/dog3.rgb");
-       err = decodeQOI("./assets/dog2.qoi", "./out/dog2.rgb");
-       err = decodeQOI("./assets/dog1.qoi", "./out/dog1.rgb");
-       err = decodeQOI("./assets/dog4.qoi", "./out/dog4.rgb");
-       err = decodeQOI("./assets/wall.qoi", "./out/wall.rgba");
-       */
+    err = decodeQOI("./assets/dog5.qoi", "./out/dog5.rgb");
+    err = decodeQOI("./assets/test.qoi", "./out/test.rgb");
+    err = decodeQOI("./assets/q1k3.qoi", "./out/q1k3.rgb");
+    err = decodeQOI("./assets/dog3.qoi", "./out/dog3.rgb");
+    err = decodeQOI("./assets/dog2.qoi", "./out/dog2.rgb");
+    err = decodeQOI("./assets/dog1.qoi", "./out/dog1.rgb");
+    err = decodeQOI("./assets/dog4.qoi", "./out/dog4.rgb");
+    err = decodeQOI("./assets/wall.qoi", "./out/wall.rgba");
 
     return err;
 }
