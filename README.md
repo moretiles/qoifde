@@ -9,6 +9,7 @@
 ```c
 #include "qoifde.h"
 
+int error;
 int ret1, ret2, ret3;
 
 //decode (QOI to RGB/RGBA)
@@ -21,6 +22,9 @@ int height = 270;
 char channels = 3;
 char colorspace = 1;
 ret3 = encodeQOI("wall.rgb", "wall.qoi", width, height, channels, colorspace);
+
+error = ret1 | ret2 | ret3;
+return error;
 ```
 
 ## Important functions
