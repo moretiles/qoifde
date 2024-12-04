@@ -1,8 +1,10 @@
-obj
-assets
+queue.h
+rgba.h
 
-bin
-out
+assets/
+bin/
+out/
 
 tags
 .gdb_history
+README.pdf

@@ -28,11 +28,11 @@ case "${1}" in
         cmp assets/dog2.rgb out/dog2.rgb || true
         cmp assets/dog3.rgb out/dog3.rgb || true
         cmp assets/dog4.rgb out/dog4.rgb || true
-        cmp assets/dog5.rgb out/dog5.rgb || true
-        cmp assets/q1k3.rgb out/q1k3.rgb || true
-        cmp assets/test.rgb out/test.rgb || true
+        cmp assets/dog5.rgba out/dog5.rgba || true
+        cmp assets/q1k3.rgba out/q1k3.rgba || true
+        cmp assets/test.rgba out/test.rgba || true
         cmp assets/wall.rgba out/wall.rgba || true
-        cmp assets/90s.rgb out/90s.rgb || true
+        cmp assets/90s.rgba out/90s.rgba || true
         cmp assets/oldtime.rgb out/oldtime.rgb || true
         cmp assets/valley.rgb out/valley.rgb || true
         cmp assets/windows11.rgb out/windows11.rgb || true
