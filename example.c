@@ -73,6 +73,38 @@ int main(){
     COLORSPACE = 1;
     err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
 
+    readFilename = "assets/90s.rgba";
+    writeFilename = "out/90s.qoi";
+    IMAGE_WIDTH = 2560;
+    IMAGE_HEIGHT = 1600;
+    CHANNELS = 4;
+    COLORSPACE = 1;
+    err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+
+    readFilename = "assets/oldtime.rgba";
+    writeFilename = "out/oldtime.qoi";
+    IMAGE_WIDTH = 1280;
+    IMAGE_HEIGHT = 1024;
+    CHANNELS = 4;
+    COLORSPACE = 1;
+    err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+
+    readFilename = "assets/valley.rgb";
+    writeFilename = "out/valley.qoi";
+    IMAGE_WIDTH = 800;
+    IMAGE_HEIGHT = 1421;
+    CHANNELS = 3;
+    COLORSPACE = 1;
+    err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+
+    readFilename = "assets/windows11.rgb";
+    writeFilename = "out/windows11.qoi";
+    IMAGE_WIDTH = 1920;
+    IMAGE_HEIGHT = 1200;
+    CHANNELS = 3;
+    COLORSPACE = 1;
+    err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
+
     /*
     //366x206
     // test.jpg / test.rgb / test.rgba
@@ -114,6 +146,10 @@ int main(){
     err = decodeQOI("./assets/dog1.qoi", "./out/dog1.rgb");
     err = decodeQOI("./assets/dog4.qoi", "./out/dog4.rgb");
     err = decodeQOI("./assets/wall.qoi", "./out/wall.rgba");
+    err = decodeQOI("./assets/90s.qoi", "./out/90s.rgb");
+    err = decodeQOI("./assets/oldtime.qoi", "./out/oldtime.rgb");
+    err = decodeQOI("./assets/valley.qoi", "./out/valley.rgb");
+    err = decodeQOI("./assets/windows11.qoi", "./out/windows11.rgb");
 
     return err;
 }
