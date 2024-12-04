@@ -246,6 +246,16 @@ encodeQOI_error:
     free(rgbaBuffer);
     rgbaBuffer = NULL;
 
+    if(readFile != NULL){
+        fclose(readFile);
+        readFile = NULL;
+    }
+
+    if(writeFile != NULL){
+        fclose(writeFile);
+        writeFile = NULL;
+    }
+
     return err;
 }
 
@@ -489,6 +499,16 @@ decodeQOI_error:
     qoiBuffer = NULL;
     free(rgbaBuffer);
     rgbaBuffer = NULL;
+
+    if(readFile != NULL){
+        fclose(readFile);
+        readFile = NULL;
+    }
+
+    if(writeFile != NULL){
+        fclose(writeFile);
+        writeFile = NULL;
+    }
 
     return err;
 }
