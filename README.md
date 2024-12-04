@@ -1,28 +1,35 @@
 # Quite Okay Image Format Decoder / Encoder
-* Can encode rgb and rgba files into qoi images.
-* Can decode qoi images into rgb or rgba files.
-* All encoding/decoding is buffered. A six gigabyte image won't kill your RAM.
+* Can decode qoi images as rgb or rgba files.
+* Can encode rgb and rgba files as qoi images.
+* All encoding/decoding is buffered.
 
 ---
 
 ## How to use
-* Read example.c to see how to encode or decode.
-* Supply images, compile, and run the resulting binary to encode/decode your images.
+```c
+#include "qoifde.h"
+
+int ret1, ret2, ret3;
+
+//decode (QOI to RGB/RGBA)
+ret1 = decodeQOI("wall.qoi", "wall.rgb",  3);
+ret2 = decodeQOI("wall.qoi", "wall.rgba", 4);
+
+//encode (RGB/RGBA TO QOI)
+int width = 480;
+int height = 270;
+char channels = 3;
+char colorspace = 1;
+ret3 = encodeQOI("wall.rgb", "wall.qoi", width, height, channels, colorspace);
+```
+
+## Important functions
+* decodeQOI accepts input filename (qoi file), output filename (rgb or rgba file), and output channels as arguments.
+* encodeQOI accepts input filename (rgb or rgba file), output filename (qoi file), width, height, channels, and colorspace as arguments.
+* All other functions are internal and may change.
 
 ## Important files
-* example.c contains an example of how to use this project.
 * qoifde.h needs to be included to decode or encode anything.
-* Makefile contains the build.
-* runtests.sh contains different (extremely informal) tests.
+* example.c contains an example that I use for testing.
+* Makefile contains a test build.
 * LICENSE contains the Apache-2.0 license which this project uses.
-
-## Header (source) files
-* qoifde.h contains the encodeQOI and decodeQOI functions. Other functions may be changed at any time.
-* queue.h contains an internal data structure used to store bytes using an array with a queue interface.
-* rgba.h contains an internal data structure that holds a red, green, blue, and alpha channel byte.
-
-## Created directories
-* assets contains input image files.
-* obj contains object files (currently unused).
-* bin contains executables output by the makefile.
-* out contains output image files.

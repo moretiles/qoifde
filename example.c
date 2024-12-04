@@ -138,18 +138,18 @@ int main(){
     err = encodeQOI(readFilename, writeFilename, IMAGE_WIDTH, IMAGE_HEIGHT, CHANNELS, COLORSPACE);
     */
 
-    err = decodeQOI("./assets/dog5.qoi", "./out/dog5.rgb");
-    err = decodeQOI("./assets/test.qoi", "./out/test.rgb");
-    err = decodeQOI("./assets/q1k3.qoi", "./out/q1k3.rgb");
-    err = decodeQOI("./assets/dog3.qoi", "./out/dog3.rgb");
-    err = decodeQOI("./assets/dog2.qoi", "./out/dog2.rgb");
-    err = decodeQOI("./assets/dog1.qoi", "./out/dog1.rgb");
-    err = decodeQOI("./assets/dog4.qoi", "./out/dog4.rgb");
-    err = decodeQOI("./assets/wall.qoi", "./out/wall.rgba");
-    err = decodeQOI("./assets/90s.qoi", "./out/90s.rgb");
-    err = decodeQOI("./assets/oldtime.qoi", "./out/oldtime.rgb");
-    err = decodeQOI("./assets/valley.qoi", "./out/valley.rgb");
-    err = decodeQOI("./assets/windows11.qoi", "./out/windows11.rgb");
+    err = decodeQOI("./assets/dog5.qoi", "./out/dog5.rgba", 4);
+    err = decodeQOI("./assets/test.qoi", "./out/test.rgba", 4);
+    err = decodeQOI("./assets/q1k3.qoi", "./out/q1k3.rgba", 4);
+    err = decodeQOI("./assets/dog3.qoi", "./out/dog3.rgb", 3);
+    err = decodeQOI("./assets/dog2.qoi", "./out/dog2.rgb", 3);
+    err = decodeQOI("./assets/dog1.qoi", "./out/dog1.rgb", 3);
+    err = decodeQOI("./assets/dog4.qoi", "./out/dog4.rgb", 3);
+    err = decodeQOI("./assets/wall.qoi", "./out/wall.rgba", 4);
+    err = decodeQOI("./assets/90s.qoi", "./out/90s.rgba", 4);
+    err = decodeQOI("./assets/oldtime.qoi", "./out/oldtime.rgb", 3);
+    err = decodeQOI("./assets/valley.qoi", "./out/valley.rgb", 3);
+    err = decodeQOI("./assets/windows11.qoi", "./out/windows11.rgb", 3);
 
     return err;
 }
