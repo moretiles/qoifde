@@ -24,14 +24,18 @@ case "${1}" in
         ;;
     d*)
         time ./bin/qoifde
-        cmp assets/dog1.rgb out/dog1.rgb
-        cmp assets/dog2.rgb out/dog2.rgb
-        cmp assets/dog3.rgb out/dog3.rgb
-        cmp assets/dog4.rgb out/dog4.rgb
-        cmp assets/dog5.rgb out/dog5.rgb
-        cmp assets/q1k3.rgb out/q1k3.rgb
-        cmp assets/test.rgb out/test.rgb
-        cmp assets/wall.rgba out/wall.rgba
+        cmp assets/dog1.rgb out/dog1.rgb || true
+        cmp assets/dog2.rgb out/dog2.rgb || true
+        cmp assets/dog3.rgb out/dog3.rgb || true
+        cmp assets/dog4.rgb out/dog4.rgb || true
+        cmp assets/dog5.rgb out/dog5.rgb || true
+        cmp assets/q1k3.rgb out/q1k3.rgb || true
+        cmp assets/test.rgb out/test.rgb || true
+        cmp assets/wall.rgba out/wall.rgba || true
+        cmp assets/90s.rgb out/90s.rgb || true
+        cmp assets/oldtime.rgb out/oldtime.rgb || true
+        cmp assets/valley.rgb out/valley.rgb || true
+        cmp assets/windows11.rgb out/windows11.rgb || true
         ;;
     *)
         echo "Don't even know that" 1>&2

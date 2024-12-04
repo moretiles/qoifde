@@ -8,9 +8,11 @@ OPTIMIZE=-O3
 DIRS=assets obj bin out
 
 analyze: example.c qoifde.h queue.h rgba.h tags ${DIRS}
+	rm -rf /tmp/qoifde.debug
 	cc example.c -o /tmp/qoifde.debug ${CFLAGS} ${DEBUG} ${ANALYZE_GCC}
-	rm /tmp/qoifde.debug
+	rm -rf /tmp/qoifde.debug
 	scan-build ${ANALYZE_CLANG} -o /tmp/qoifde.debug make debug
+	rm -rf /tmp/qoifde.debug
 
 debug: example.c qoifde.h queue.h rgba.h tags ${DIRS}
 	cc example.c -o bin/qoifde ${CFLAGS} ${DEBUG} ${SAN}
