@@ -1,6 +1,6 @@
 # Quite Okay Image Format Decoder / Encoder
-* Can decode qoi images as rgb or rgba files.
-* Can encode rgb and rgba files as qoi images.
+* Can decode qoi image files as rgb or rgba files.
+* Can encode rgb and rgba files as qoi image files.
 * All encoding/decoding is buffered.
 
 ---
@@ -9,22 +9,24 @@
 ```c
 #include "qoifde.h"
 
-int error;
-int ret1, ret2, ret3;
+int main(){
+    int error;
+    int ret1, ret2, ret3;
 
-//decode (QOI to RGB/RGBA)
-ret1 = decodeQOI("wall.qoi", "wall.rgb",  3);
-ret2 = decodeQOI("wall.qoi", "wall.rgba", 4);
+    //decode (QOI to RGB/RGBA)
+    ret1 = decodeQOI("wall.qoi", "wall.rgb",  3);
+    ret2 = decodeQOI("wall.qoi", "wall.rgba", 4);
 
-//encode (RGB/RGBA TO QOI)
-int width = 480;
-int height = 270;
-char channels = 3;
-char colorspace = 1;
-ret3 = encodeQOI("wall.rgb", "wall.qoi", width, height, channels, colorspace);
+    //encode (RGB/RGBA TO QOI)
+    int width = 480;
+    int height = 270;
+    char channels = 3;
+    char colorspace = 1;
+    ret3 = encodeQOI("wall.rgb", "wall.qoi", width, height, channels, colorspace);
 
-error = ret1 | ret2 | ret3;
-return error;
+    error = ret1 | ret2 | ret3;
+    return error;
+}
 ```
 
 ## Important functions
