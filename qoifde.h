@@ -1,14 +1,20 @@
+/*
+ * qoifde.h -- header file that provides encodeQOI and decodeQOI
+ *
+ * Quite Okay Image Format Decoder / Encoder
+ * https://github.com/moretiles/qoifde
+ * Project licensed under Apache-2.0 license
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
-//#include "queue.h"
-//#include "rgba.h"
-
 #define MAGIC "qoif"
 #define END_MARKER "\x00\x00\x00\x00\x00\x00\x00\x01"
 
+// Make sure that MAX_BLOCK_SIZE is a multiple of 3 and 4
 #ifndef MAX_BLOCK_SIZE
 #define MAX_BLOCK_SIZE (3 * 1024 * 1024)
 #endif
@@ -699,7 +705,6 @@ int decodeQOI(char *infile, char *outfile, char channelsInput){
 
     // Flush remaining data to writeFile
     if(err == 0 && writeQueue->pos > 0){
-        //write = fdequeue(writeFile, writeQueue, writeQueue->pos - (writeQueue->pos % channels));
         write = fdequeue(writeFile, writeQueue, writeQueue->pos);
         if(write <= 0){
             cont = 0;

@@ -7,10 +7,11 @@ if [[ -z "${2}" ]]; then
     exit 1
 fi
 
+make clean
 make "${2}"
 case "${1}" in
     e*)
-        time ./bin/qoifde
+        time ./bin/qoifde || printf "exited with abnormal status code %s\n" $?
         #cmp assets/dog1.qoi out/dog1.qoi
         #cmp assets/dog2.qoi out/dog2.qoi
         #cmp assets/dog3.qoi out/dog3.qoi
@@ -23,7 +24,7 @@ case "${1}" in
         sxiv out
         ;;
     d*)
-        time ./bin/qoifde
+        time ./bin/qoifde || printf "exited with abnormal status code %s\n" $?
         cmp assets/dog1.rgb out/dog1.rgb || true
         cmp assets/dog2.rgb out/dog2.rgb || true
         cmp assets/dog3.rgb out/dog3.rgb || true
